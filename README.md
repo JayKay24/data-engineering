@@ -1,8 +1,8 @@
 # Data Engineering Monorepo
 
-This repository is a monorepo containing data-engineering projects and pipelines.
+This repository is my monorepo containing my data-engineering projects and pipelines.
 
-The monorepo is managed using **Pantsbuild (Pants)**, targeting **Python 3.10.x** and utilizing **Ruff** for high-performance linting and formatting.
+I manage this monorepo using **Pantsbuild (Pants)**, targeting **Python 3.10.x** and utilizing **Ruff** for high-performance linting and formatting.
 
 ---
 
@@ -42,7 +42,7 @@ pyenv install 3.10.9
 ```
 
 ### 2. Set Up the Virtual Environment
-Pants manages its own virtual environments, but you can export one symlinked to `.venv` for editor integration (autocompletion, diagnostics, etc.):
+Pants manages its own virtual environments, but I like to export one symlinked to `.venv` for editor integration (autocompletion, diagnostics, etc.):
 ```bash
 # Export the Pants-managed environment
 ./pants export --resolve=shared-lock
@@ -55,7 +55,7 @@ source .venv/bin/activate
 
 ## ⚡ CLI Cheatsheet
 
-Run these commands from the root directory:
+I frequently run these commands from the root directory:
 
 | Goal | Command | Description |
 | :--- | :--- | :--- |
@@ -71,7 +71,7 @@ Run these commands from the root directory:
 
 ## 📈 Adding a New Project
 
-When you are ready to start coding a new project:
+When I am ready to start coding a new project:
 
 1.  **Create the project directory:**
     ```bash
@@ -85,6 +85,6 @@ When you are ready to start coding a new project:
     )
     ```
 3.  **Manage Dependencies:**
-    *   If you need a new external library (e.g., `pandas`), add it to `3rdparty/requirements.txt`.
+    *   If I need a new external library (e.g., `pandas`), I add it to `3rdparty/requirements.txt`.
     *   Regenerate the lockfile: `./pants generate-lockfiles`
-    *   Pants will **automatically infer** imports in your Python files—no need to manually declare dependencies in `BUILD` files!
+    *   Pants will **automatically infer** imports in my Python files—no need to manually declare dependencies in `BUILD` files!
