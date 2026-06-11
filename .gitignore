@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.venv/
+env/
+venv/
+.pytest_cache/
+.mypy_cache/
+
+# Pants
+/.pants.d/
+/dist/
+.pants.bootstrap
+pants.requirements.pex
+.pids/
+
+# OS-specific
+.DS_Store

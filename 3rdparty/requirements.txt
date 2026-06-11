@@ -1,0 +1,2 @@
+# Third-party Python dependencies for the data engineering projects.
+# Add your requirements (e.g. pandas, pyspark, dbt-core) here.
