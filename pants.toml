@@ -9,8 +9,8 @@ backend_packages = [
 ]
 
 [python]
-# Restrict interpreter to Python 3.10
-interpreter_constraints = ["==3.10.*"]
+# Restrict interpreter to Python 3.10.9
+interpreter_constraints = ["==3.10.9"]
 
 # Configure global lockfile setup
 enable_resolves = true
@@ -18,6 +18,12 @@ default_resolve = "shared-lock"
 
 [python.resolves]
 shared-lock = "3rdparty/user_reqs.lock"
+
+[python-bootstrap]
+search_path = [
+  "<PYENV>",
+  "<PATH>",
+]
 
 [ruff]
 # Enable both linting and formatting with Ruff
