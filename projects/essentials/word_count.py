@@ -1,3 +1,4 @@
+# %%
 import os
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import explode, split, col
@@ -7,18 +8,18 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 INPUT_PATH = os.path.join(SCRIPT_DIR, "input_data", "sample_text.txt")
 OUTPUT_PATH = os.path.join(SCRIPT_DIR, "output_data", "word_counts")
 
-# Initialize SparkSession
+# %% Initialize SparkSession
 spark = (
     SparkSession.builder.appName("WordCountExample").master("local[*]").getOrCreate()
 )
 
-# Read text file
+# %% Read text file
 lines = spark.read.text(INPUT_PATH)
 
-# Split lines into words
+# %% Split lines into words
 words = lines.select(explode(split(col("value"), "\\\\s+")).alias("word"))
 
-# Count word frequencies
+# %% Count word frequencies
 word_counts = words.groupBy("word").count()
 
 # Write results to CSV
