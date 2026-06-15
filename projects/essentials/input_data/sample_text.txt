@@ -1,0 +1,5 @@
+Got it —
+you want to organize your PySpark word_count.py example in a clean, professional chapter-wise folder structure,
+especially because you are building the GitHub project alongside the book.
+
+Let’s structure it smartly.

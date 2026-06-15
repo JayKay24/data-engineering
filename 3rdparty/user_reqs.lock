@@ -8,7 +8,9 @@
 //   "valid_for_interpreter_constraints": [
 //     "CPython==3.10.*"
 //   ],
-//   "generated_with_requirements": [],
+//   "generated_with_requirements": [
+//     "pyspark<4.0.0,>=3.3.0"
+//   ],
 //   "manylinux": "manylinux2014",
 //   "requirement_constraints": [],
 //   "only_binary": [],
@@ -22,14 +24,69 @@
   "allow_wheels": true,
   "build_isolation": true,
   "constraints": [],
-  "locked_resolves": [],
+  "locked_resolves": [
+    {
+      "locked_requirements": [
+        {
+          "artifacts": [
+            {
+              "algorithm": "sha256",
+              "hash": "c7c26e4158defb37b0bb124933163641a2ff6e3a3913f7811b0ddbe07ed61533",
+              "url": "https://files.pythonhosted.org/packages/bd/db/ea0203e495be491c85af87b66e37acfd3bf756fd985f87e46fc5e3bf022c/py4j-0.10.9.9-py2.py3-none-any.whl"
+            },
+            {
+              "algorithm": "sha256",
+              "hash": "f694cad19efa5bd1dee4f3e5270eb406613c974394035e5bfc4ec1aba870b879",
+              "url": "https://files.pythonhosted.org/packages/38/31/0b210511177070c8d5d3059556194352e5753602fa64b85b7ab81ec1a009/py4j-0.10.9.9.tar.gz"
+            }
+          ],
+          "project_name": "py4j",
+          "requires_dists": [],
+          "requires_python": null,
+          "version": "0.10.9.9"
+        },
+        {
+          "artifacts": [
+            {
+              "algorithm": "sha256",
+              "hash": "54cca0767b21b40e3953ad1d30f8601c53abf9cbda763653289cdcfcac52313c",
+              "url": "https://files.pythonhosted.org/packages/80/5a/3806f44eb47387e8af803508cdd6bbc0df784febf4dc010700be04a1ff89/pyspark-3.5.8.tar.gz"
+            }
+          ],
+          "project_name": "pyspark",
+          "requires_dists": [
+            "googleapis-common-protos>=1.56.4; extra == \"connect\"",
+            "grpcio-status>=1.56.0; extra == \"connect\"",
+            "grpcio>=1.56.0; extra == \"connect\"",
+            "numpy<2,>=1.15; extra == \"connect\"",
+            "numpy<2,>=1.15; extra == \"ml\"",
+            "numpy<2,>=1.15; extra == \"mllib\"",
+            "numpy<2,>=1.15; extra == \"pandas-on-spark\"",
+            "numpy<2,>=1.15; extra == \"sql\"",
+            "pandas>=1.0.5; extra == \"connect\"",
+            "pandas>=1.0.5; extra == \"pandas-on-spark\"",
+            "pandas>=1.0.5; extra == \"sql\"",
+            "py4j<0.10.9.10,>=0.10.9.7",
+            "pyarrow>=4.0.0; extra == \"connect\"",
+            "pyarrow>=4.0.0; extra == \"pandas-on-spark\"",
+            "pyarrow>=4.0.0; extra == \"sql\""
+          ],
+          "requires_python": ">=3.8",
+          "version": "3.5.8"
+        }
+      ],
+      "platform_tag": null
+    }
+  ],
   "only_builds": [],
   "only_wheels": [],
   "path_mappings": {},
   "pex_version": "2.3.1",
   "pip_version": "24.0",
   "prefer_older_binary": false,
-  "requirements": [],
+  "requirements": [
+    "pyspark<4.0.0,>=3.3.0"
+  ],
   "requires_python": [
     "==3.10.*"
   ],
