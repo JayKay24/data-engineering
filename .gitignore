@@ -19,3 +19,5 @@ pants.requirements.pex
 
 # OS-specific
 .DS_Store
+
+output_data
