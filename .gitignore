@@ -21,3 +21,11 @@ pants.requirements.pex
 .DS_Store
 
 output_data
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+
+# Spark / Database temporary files
+metastore_db/
+derby.log
+spark-warehouse/
