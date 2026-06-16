@@ -34,4 +34,5 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REPO_NAME: ${{ github.repository }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
         run: python scripts/ai_pr_reviewer.py

@@ -48,7 +48,12 @@ def build_diff_content(pr: PullRequest, ignore_spec: pathspec.PathSpec) -> str:
         
         file_header = f"=== File: {file.filename} ===\n"
         if file.patch:
-            diff_content.append(f"{file_header}{file.patch}\n")
+            # Skip overly large individual patches to ensure fairness across files
+            if len(file.patch) > 30000:
+                diff_content.append(f"{file_header}[File patch omitted: Exceeds single-file size limit]\n")
+                print(f"Skipping patch for {file.filename} (exceeds 30,000 character limit)")
+            else:
+                diff_content.append(f"{file_header}{file.patch}\n")
         else:
             diff_content.append(f"{file_header}[File modified, but no patch details available]\n")
             
@@ -65,10 +70,10 @@ def build_diff_content(pr: PullRequest, ignore_spec: pathspec.PathSpec) -> str:
     return full_diff
 
 
-def generate_review(gemini_api_key: str, diff: str) -> str:
+def generate_review(gemini_api_key: str, model_name: str, diff: str) -> str:
     """Sends the PR diff to the Gemini API and returns the markdown review."""
     genai.configure(api_key=gemini_api_key)
-    model = genai.GenerativeModel("gemini-3.5-flash")
+    model = genai.GenerativeModel(model_name)
     
     prompt = f"""
 You are an expert Data Engineer and Python Code Reviewer.
@@ -105,6 +110,9 @@ def main():
     github_token = os.getenv("GITHUB_TOKEN")
     pr_number_str = os.getenv("PR_NUMBER")
     repo_name = os.getenv("REPO_NAME")
+    gemini_model = os.getenv("GEMINI_MODEL")
+    if not gemini_model or not gemini_model.strip():
+        gemini_model = "gemini-1.5-flash"
 
     # Handle missing API Key gracefully (e.g. for PRs from external forks)
     if not gemini_api_key:
@@ -136,12 +144,20 @@ def main():
         sys.exit(0)
 
     # Generate review
-    print("Generating review with Gemini...")
-    review_body = generate_review(gemini_api_key, diff)
+    print(f"Generating review with Gemini (model: {gemini_model})...")
+    try:
+        review_body = generate_review(gemini_api_key, gemini_model, diff)
+    except Exception as e:
+        print(f"Error generating review via Gemini API: {e}", file=sys.stderr)
+        sys.exit(1)
 
     # Post review
     print("Posting review back to GitHub...")
-    post_review(pr, review_body)
+    try:
+        post_review(pr, review_body)
+    except Exception as e:
+        print(f"Error posting review comment to GitHub: {e}", file=sys.stderr)
+        sys.exit(1)
     print("Successfully posted PR review!")
 
 
