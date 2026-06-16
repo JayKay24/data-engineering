@@ -38,70 +38,75 @@ def get_ignore_spec() -> pathspec.PathSpec:
 
 
 def build_diff_content(pr: PullRequest, ignore_spec: pathspec.PathSpec) -> str:
-    """Retrieves and filters PR file diffs, handling size limits."""
+    """Retrieves and filters PR file diffs, handling size limits and early exits."""
     diff_content: List[str] = []
+    current_size = 0
+    
     for file in pr.get_files():
+        # Optimization: Stop fetching additional diffs once we are past the limit
+        if current_size >= MAX_DIFF_CHARACTERS:
+            diff_content.append("\n\n... [TRUNCATED: MAX CHARACTER LIMIT REACHED] ...")
+            print("Max character limit reached during diff generation. Stopping file retrieval.")
+            break
+
         # Skip files matching ignore patterns
         if ignore_spec.match_file(file.filename):
             print(f"Skipping {file.filename} (ignored)")
             continue
         
         file_header = f"=== File: {file.filename} ===\n"
+        patch_str = ""
         if file.patch:
-            # Skip overly large individual patches to ensure fairness across files
             if len(file.patch) > 30000:
-                diff_content.append(f"{file_header}[File patch omitted: Exceeds single-file size limit]\n")
+                patch_str = f"{file_header}[File patch omitted: Exceeds single-file size limit]\n"
                 print(f"Skipping patch for {file.filename} (exceeds 30,000 character limit)")
             else:
-                diff_content.append(f"{file_header}{file.patch}\n")
+                patch_str = f"{file_header}{file.patch}\n"
         else:
-            diff_content.append(f"{file_header}[File modified, but no patch details available]\n")
+            patch_str = f"{file_header}[File modified, but no patch details available]\n"
             
-    full_diff = "\n".join(diff_content)
-    
-    # Handle defensive size cutoff
-    if len(full_diff) > MAX_DIFF_CHARACTERS:
-        print(f"Warning: PR diff size ({len(full_diff)} chars) exceeds threshold. Truncating.")
-        full_diff = (
-            full_diff[:MAX_DIFF_CHARACTERS]
-            + "\n\n... [TRUNCATED DUE TO EXTREME SIZE] ..."
-        )
+        diff_content.append(patch_str)
+        current_size += len(patch_str)
         
-    return full_diff
+    return "\n".join(diff_content)
 
 
 def generate_review(gemini_api_key: str, model_name: str, diff: str) -> str:
     """Sends the PR diff to the Gemini API and returns the markdown review."""
     genai.configure(api_key=gemini_api_key)
-    model = genai.GenerativeModel(model_name)
     
-    prompt = f"""
-You are an expert Data Engineer and Python Code Reviewer.
-Your task is to conduct a professional, constructive code review for the following Pull Request diff.
-
-Specific areas to analyze:
-1. **PySpark & Data Engineering Best Practices**: Check for issues like unpartitioned writes, redundant/missing caching, expensive operations like `.collect()` on large datasets, and proper schema enforcement.
-2. **Python Code Quality**: Verify Pythonic style, readability, naming conventions, docstrings, and comments (matching Ruff/PEP8 standards).
-3. **Bugs & Edge Cases**: Look for logical bugs, incorrect relative paths, unhandled exceptions, or potential null pointer errors.
-
-Format your review in Markdown with the following sections:
-- **🤖 AI PR Review Summary**: A brief, high-level summary of what the PR changes.
-- **💡 Key Feedback & Recommendations**: Bullet points detailing specific improvements. Include code snippets for "Before" and "After" where applicable.
-- **✅ Verdict**: One of the following:
-  - **Approve**: The code looks clean, optimized, and ready to merge.
-  - **Comment**: Needs minor cleanup, formatting, or documentation.
-  - **Request Changes**: Critical bugs or severe PySpark performance risks that should be resolved before merging.
-
-PR Diff:
-{diff}
-"""
+    system_instruction = (
+        "You are an expert Data Engineer and Python Code Reviewer.\n"
+        "Your task is to conduct a professional, constructive code review.\n\n"
+        "Specific areas to analyze:\n"
+        "1. PySpark & Data Engineering Best Practices (unpartitioned writes, redundant caching, .collect() issues).\n"
+        "2. Python Code Quality (Ruff/PEP8 standards, naming, docstrings).\n"
+        "3. Bugs & Edge Cases (logical bugs, unhandled exceptions).\n\n"
+        "Format your review in Markdown with the following sections:\n"
+        "- 🤖 AI PR Review Summary\n"
+        "- 💡 Key Feedback & Recommendations (with before/after code blocks)\n"
+        "- ✅ Verdict (Approve, Comment, Request Changes)"
+    )
+    
+    model = genai.GenerativeModel(
+        model_name,
+        system_instruction=system_instruction
+    )
+    
+    prompt = f"Please review the following PR Diff:\n\n{diff}"
     response = model.generate_content(prompt)
     return response.text
 
 
 def post_review(pr: PullRequest, review_body: str) -> None:
-    """Submits the review as an official Pull Request Review on GitHub."""
-    pr.create_review(body=review_body, event="COMMENT")
+    """Submits the review as an official Pull Request Review on GitHub. Handles fork permissions gracefully."""
+    try:
+        pr.create_review(body=review_body, event="COMMENT")
+    except Exception as e:
+        print(f"Warning: Failed to post PR review comment: {e}", file=sys.stderr)
+        print("This is expected for Pull Requests from external forks where GITHUB_TOKEN has read-only access.")
+        print("Exiting gracefully with code 0.")
+        sys.exit(0)
 
 
 def main():
