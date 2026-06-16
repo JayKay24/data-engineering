@@ -22,7 +22,7 @@ words = lines.select(explode(split(col("value"), "\\\\s+")).alias("word"))
 # %% Count word frequencies
 word_counts = words.groupBy("word").count()
 
-# Write results to CSV
+# %% Write results to CSV
 word_counts.write.mode("overwrite").csv(OUTPUT_PATH, header=True)
 
 print(f"Word counts successfully written to {OUTPUT_PATH}")
