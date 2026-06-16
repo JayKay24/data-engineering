@@ -52,3 +52,18 @@ This project is bootstrapped to work seamlessly with VS Code / Antigravity IDE w
 2. **STRICTLY LOCAL SCOPE:** Do not write or modify any VS Code/IDE configurations outside the `data-engineering` project directory.
 3. **PANTS COMPLIANCE:** Always follow the target-based workflow for Pants commands.
 4. **SPARK COMPATIBILITY:** Run PySpark tasks using Java 17 via the `JAVA_HOME` configuration found in `.env`.
+
+---
+
+## 4. Pull Request & Bookkeeping Workflow
+
+When implementing new features or bug fixes, follow this workflow to coordinate PR creation:
+
+1. **Local Implementation & Verification:** Implement changes locally, verify they run/test successfully, and document them in `README.md` and `agents.md`.
+2. **User Review & Local Commit:** Present the changes to the user. The user will review the code locally and run `git commit` manually.
+3. **PR Creation:** Once the user commits the changes, they will instruct you to create the Pull Request (or you can offer to do so).
+4. **PR Formatting:** Use the `github` MCP server to create the PR. The PR must have a detailed description containing:
+   * **Summary:** A clear explanation of *why* the changes were made.
+   * **Key Changes:** A bulleted list of modified modules/files and what was updated.
+   * **Verification:** Documentation of successful test/run commands executed during verification.
+
