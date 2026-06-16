@@ -15,7 +15,12 @@ def get_ignore_spec() -> pathspec.PathSpec:
     if os.path.exists(".gitignore"):
         try:
             with open(".gitignore", "r", encoding="utf-8") as f:
-                ignore_patterns.extend(f.readlines())
+                lines = [
+                    line.strip()
+                    for line in f
+                    if line.strip() and not line.strip().startswith("#")
+                ]
+                ignore_patterns.extend(lines)
         except Exception as e:
             print(f"Warning: Failed to parse .gitignore: {e}", file=sys.stderr)
             
