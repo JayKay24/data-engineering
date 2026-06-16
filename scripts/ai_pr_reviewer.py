@@ -101,11 +101,20 @@ def main():
     pr_number_str = os.getenv("PR_NUMBER")
     repo_name = os.getenv("REPO_NAME")
 
-    if not all([gemini_api_key, github_token, pr_number_str, repo_name]):
-        print("Error: Missing required environment variables.", file=sys.stderr)
+    # Handle missing API Key gracefully (e.g. for PRs from external forks)
+    if not gemini_api_key:
+        print("Warning: GEMINI_API_KEY is missing. Skipping AI Review (expected for external forks).")
+        sys.exit(0)
+
+    if not all([github_token, pr_number_str, repo_name]):
+        print("Error: Missing required environment variables (GITHUB_TOKEN, PR_NUMBER, or REPO_NAME).", file=sys.stderr)
         sys.exit(1)
 
-    pr_number = int(pr_number_str)
+    try:
+        pr_number = int(pr_number_str)
+    except ValueError:
+        print(f"Error: PR_NUMBER '{pr_number_str}' is not a valid integer.", file=sys.stderr)
+        sys.exit(1)
 
     # Initialize client and fetch PR
     print(f"Connecting to repo {repo_name} and fetching PR #{pr_number}...")
