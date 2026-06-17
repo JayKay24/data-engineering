@@ -160,16 +160,20 @@ def main():
     try:
         review_body = generate_review(gemini_api_key, gemini_model, diff)
     except Exception as e:
-        print(f"Error generating review via Gemini API: {e}", file=sys.stderr)
-        sys.exit(1)
+        print(
+            f"Warning: Failed to generate review via Gemini API: {e}", file=sys.stderr
+        )
+        print("Exiting gracefully with code 0 to avoid failing the CI build.")
+        sys.exit(0)
 
     # Post review
     print("Posting review back to GitHub...")
     try:
         post_review(pr, review_body)
     except Exception as e:
-        print(f"Error posting review comment to GitHub: {e}", file=sys.stderr)
-        sys.exit(1)
+        print(f"Warning: Failed to post review comment to GitHub: {e}", file=sys.stderr)
+        print("Exiting gracefully with code 0.")
+        sys.exit(0)
     print("Successfully posted PR review!")
 
 
