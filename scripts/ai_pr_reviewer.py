@@ -9,6 +9,7 @@ import pathspec
 # Max character limit for diff payload to stay within token limits
 MAX_DIFF_CHARACTERS = 150000
 
+
 def get_ignore_spec() -> pathspec.PathSpec:
     """Loads .gitignore patterns and appends custom file exclusion wildcards."""
     ignore_patterns = []
@@ -23,17 +24,10 @@ def get_ignore_spec() -> pathspec.PathSpec:
                 ignore_patterns.extend(lines)
         except Exception as e:
             print(f"Warning: Failed to parse .gitignore: {e}", file=sys.stderr)
-            
+
     # Custom wildcards for lockfiles and binary assets to skip
-    ignore_patterns.extend([
-        "*.lock",
-        "*.png",
-        "*.jpg",
-        "*.jpeg",
-        "*.zip",
-        "*.pdf"
-    ])
-    
+    ignore_patterns.extend(["*.lock", "*.png", "*.jpg", "*.jpeg", "*.zip", "*.pdf"])
+
     return pathspec.PathSpec.from_lines("gitwildmatch", ignore_patterns)
 
 
@@ -41,40 +35,46 @@ def build_diff_content(pr: PullRequest, ignore_spec: pathspec.PathSpec) -> str:
     """Retrieves and filters PR file diffs, handling size limits and early exits."""
     diff_content: List[str] = []
     current_size = 0
-    
+
     for file in pr.get_files():
         # Optimization: Stop fetching additional diffs once we are past the limit
         if current_size >= MAX_DIFF_CHARACTERS:
             diff_content.append("\n\n... [TRUNCATED: MAX CHARACTER LIMIT REACHED] ...")
-            print("Max character limit reached during diff generation. Stopping file retrieval.")
+            print(
+                "Max character limit reached during diff generation. Stopping file retrieval."
+            )
             break
 
         # Skip files matching ignore patterns
         if ignore_spec.match_file(file.filename):
             print(f"Skipping {file.filename} (ignored)")
             continue
-        
+
         file_header = f"=== File: {file.filename} ===\n"
         patch_str = ""
         if file.patch:
             if len(file.patch) > 30000:
                 patch_str = f"{file_header}[File patch omitted: Exceeds single-file size limit]\n"
-                print(f"Skipping patch for {file.filename} (exceeds 30,000 character limit)")
+                print(
+                    f"Skipping patch for {file.filename} (exceeds 30,000 character limit)"
+                )
             else:
                 patch_str = f"{file_header}{file.patch}\n"
         else:
-            patch_str = f"{file_header}[File modified, but no patch details available]\n"
-            
+            patch_str = (
+                f"{file_header}[File modified, but no patch details available]\n"
+            )
+
         diff_content.append(patch_str)
         current_size += len(patch_str)
-        
+
     return "\n".join(diff_content)
 
 
 def generate_review(gemini_api_key: str, model_name: str, diff: str) -> str:
     """Sends the PR diff to the Gemini API and returns the markdown review."""
     genai.configure(api_key=gemini_api_key)
-    
+
     system_instruction = (
         "You are an expert Data Engineer and Python Code Reviewer.\n"
         "Your task is to conduct a professional, constructive code review.\n\n"
@@ -87,12 +87,9 @@ def generate_review(gemini_api_key: str, model_name: str, diff: str) -> str:
         "- 💡 Key Feedback & Recommendations (with before/after code blocks)\n"
         "- ✅ Verdict (Approve, Comment, Request Changes)"
     )
-    
-    model = genai.GenerativeModel(
-        model_name,
-        system_instruction=system_instruction
-    )
-    
+
+    model = genai.GenerativeModel(model_name, system_instruction=system_instruction)
+
     prompt = f"Please review the following PR Diff:\n\n{diff}"
     response = model.generate_content(prompt)
     return response.text
@@ -104,7 +101,9 @@ def post_review(pr: PullRequest, review_body: str) -> None:
         pr.create_review(body=review_body, event="COMMENT")
     except Exception as e:
         print(f"Warning: Failed to post PR review comment: {e}", file=sys.stderr)
-        print("This is expected for Pull Requests from external forks where GITHUB_TOKEN has read-only access.")
+        print(
+            "This is expected for Pull Requests from external forks where GITHUB_TOKEN has read-only access."
+        )
         print("Exiting gracefully with code 0.")
         sys.exit(0)
 
@@ -121,17 +120,25 @@ def main():
 
     # Handle missing API Key gracefully (e.g. for PRs from external forks)
     if not gemini_api_key:
-        print("Warning: GEMINI_API_KEY is missing. Skipping AI Review (expected for external forks).")
+        print(
+            "Warning: GEMINI_API_KEY is missing. Skipping AI Review (expected for external forks)."
+        )
         sys.exit(0)
 
     if not all([github_token, pr_number_str, repo_name]):
-        print("Error: Missing required environment variables (GITHUB_TOKEN, PR_NUMBER, or REPO_NAME).", file=sys.stderr)
+        print(
+            "Error: Missing required environment variables (GITHUB_TOKEN, PR_NUMBER, or REPO_NAME).",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     try:
         pr_number = int(pr_number_str)
     except ValueError:
-        print(f"Error: PR_NUMBER '{pr_number_str}' is not a valid integer.", file=sys.stderr)
+        print(
+            f"Error: PR_NUMBER '{pr_number_str}' is not a valid integer.",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     # Initialize client and fetch PR
