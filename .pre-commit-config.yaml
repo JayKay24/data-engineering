@@ -1,0 +1,17 @@
+# Pre-commit configuration for Pants Build Monorepo
+# See https://pre-commit.com for more information
+
+repos:
+  - repo: local
+    hooks:
+      - id: pants-fmt
+        name: Pants Format
+        entry: ./pants fmt
+        language: system
+        types: [python]
+
+      - id: pants-lint
+        name: Pants Lint
+        entry: ./pants lint
+        language: system
+        types: [python]
