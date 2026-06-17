@@ -3,6 +3,15 @@ name: AI Code Reviewer
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+    paths:
+      - '**.py'
+      - 'pants.toml'
+      - '3rdparty/**'
+      - 'scripts/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   pull-requests: write
