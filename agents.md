@@ -18,12 +18,17 @@ This repository is a **Python Data Engineering Monorepo** managed by the **Pants
 * **Data Processing:** PySpark (`3.5.8`)
 
 ### Project Structure
+* `.github/workflows/ai-review.yml`: Automated Gemini AI PR reviewer workflow on GitHub Actions.
+* `.pre-commit-config.yaml`: Pre-commit hooks configuration to run `./pants fmt` and `./pants lint` locally.
 * `3rdparty/`: Contains requirements (`requirements.txt`) and Pants lockfiles (`user_reqs.lock`).
 * `projects/essentials/`: First sub-project (derived generic implementation from *Hello Modern Data Pipelines*, Chapter 2).
   * `word_count.py`: Local text processing WordCount Spark script.
   * `employee_partition_by_hire_date.py`: Local partitioning Spark script.
   * `input_data/`: Small CSV/txt sample inputs.
   * `output_data/`: Automatically generated Spark output targets (ignored by git).
+* `scripts/`: Python utility scripts.
+  * `ai_pr_reviewer.py`: The AI code reviewer script powered by the Gemini API.
+  * `BUILD`: Pants build definition for the scripts directory.
 * `.venv`: A root-level symlink pointing to the current active Pants-generated virtual environment.
 
 ---

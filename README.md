@@ -12,6 +12,8 @@ I manage this monorepo using **Pantsbuild (Pants)**, targeting **Python 3.10.x**
 *   **Target Language:** Python 3.10.9 (configured via `.python-version` and Pyenv)
 *   **Format & Lint:** [Ruff](https://github.com/astral-sh/ruff) (unified linter and formatter)
 *   **Dependency Management:** Single shared lockfile (`3rdparty/user_reqs.lock`)
+*   **Git Hooks:** [pre-commit](https://pre-commit.com/) (runs Pants formatting and linting locally)
+*   **CI Reviewer:** Gemini API code reviewer via GitHub Actions and `google-generativeai`
 
 ---
 
@@ -19,7 +21,11 @@ I manage this monorepo using **Pantsbuild (Pants)**, targeting **Python 3.10.x**
 
 ```text
 data-engineering/
+├── .github/
+│   └── workflows/
+│       └── ai-review.yml      # CI pipeline for automated AI code reviews
 ├── .gitignore                 # Python, Pants, and OS ignore rules
+├── .pre-commit-config.yaml    # Configures the local pre-commit hook
 ├── .python-version            # Sets project-local Python to 3.10.9
 ├── pants                      # Pants launcher binary (scie-pants)
 ├── pants.toml                 # Main configuration for Pants and tool backends
@@ -28,7 +34,10 @@ data-engineering/
 │   ├── BUILD                  # Configures global dependency targets
 │   ├── requirements.txt       # Lists project requirements (pandas, PySpark, etc.)
 │   └── user_reqs.lock         # Pants generated dependency lockfile
-└── projects/                  # Directory containing all sub-projects
+├── projects/                  # Directory containing all sub-projects
+└── scripts/
+    ├── BUILD                  # Configures scripts targets for Pants
+    └── ai_pr_reviewer.py      # Python script that runs Gemini AI code reviews
 ```
 
 ---
@@ -49,6 +58,12 @@ Pants manages its own virtual environments, but I like to export one symlinked t
 
 # Activate it in your terminal
 source .venv/bin/activate
+```
+
+### 3. Set Up Pre-commit Hooks
+The project uses `pre-commit` to automatically run Pants formatters and linters on staged files. Run the following command inside the virtual environment to install the hooks:
+```bash
+pre-commit install
 ```
 
 ---

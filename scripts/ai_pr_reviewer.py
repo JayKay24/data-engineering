@@ -41,7 +41,8 @@ def build_diff_content(pr: PullRequest, ignore_spec: pathspec.PathSpec) -> str:
         if current_size >= MAX_DIFF_CHARACTERS:
             diff_content.append("\n\n... [TRUNCATED: MAX CHARACTER LIMIT REACHED] ...")
             print(
-                "Max character limit reached during diff generation. Stopping file retrieval."
+                "Max character limit reached during diff generation. Stopping file retrieval.",
+                file=sys.stderr,
             )
             break
 
@@ -56,7 +57,8 @@ def build_diff_content(pr: PullRequest, ignore_spec: pathspec.PathSpec) -> str:
             if len(file.patch) > 30000:
                 patch_str = f"{file_header}[File patch omitted: Exceeds single-file size limit]\n"
                 print(
-                    f"Skipping patch for {file.filename} (exceeds 30,000 character limit)"
+                    f"Skipping patch for {file.filename} (exceeds 30,000 character limit)",
+                    file=sys.stderr,
                 )
             else:
                 patch_str = f"{file_header}{file.patch}\n"
@@ -102,9 +104,10 @@ def post_review(pr: PullRequest, review_body: str) -> None:
     except Exception as e:
         print(f"Warning: Failed to post PR review comment: {e}", file=sys.stderr)
         print(
-            "This is expected for Pull Requests from external forks where GITHUB_TOKEN has read-only access."
+            "This is expected for Pull Requests from external forks where GITHUB_TOKEN has read-only access.",
+            file=sys.stderr,
         )
-        print("Exiting gracefully with code 0.")
+        print("Exiting gracefully with code 0.", file=sys.stderr)
         sys.exit(0)
 
 
@@ -121,7 +124,8 @@ def main():
     # Handle missing API Key gracefully (e.g. for PRs from external forks)
     if not gemini_api_key:
         print(
-            "Warning: GEMINI_API_KEY is missing. Skipping AI Review (expected for external forks)."
+            "Warning: GEMINI_API_KEY is missing. Skipping AI Review (expected for external forks).",
+            file=sys.stderr,
         )
         sys.exit(0)
 
@@ -163,7 +167,10 @@ def main():
         print(
             f"Warning: Failed to generate review via Gemini API: {e}", file=sys.stderr
         )
-        print("Exiting gracefully with code 0 to avoid failing the CI build.")
+        print(
+            "Exiting gracefully with code 0 to avoid failing the CI build.",
+            file=sys.stderr,
+        )
         sys.exit(0)
 
     # Post review
@@ -172,7 +179,7 @@ def main():
         post_review(pr, review_body)
     except Exception as e:
         print(f"Warning: Failed to post review comment to GitHub: {e}", file=sys.stderr)
-        print("Exiting gracefully with code 0.")
+        print("Exiting gracefully with code 0.", file=sys.stderr)
         sys.exit(0)
     print("Successfully posted PR review!")
 
