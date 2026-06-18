@@ -26,6 +26,13 @@ This repository is a **Python Data Engineering Monorepo** managed by the **Pants
   * `employee_partition_by_hire_date.py`: Local partitioning Spark script.
   * `input_data/`: Small CSV/txt sample inputs.
   * `output_data/`: Automatically generated Spark output targets (ignored by git).
+* `projects/ingestion/`: Ingestion project (derived implementation from *Hello Modern Data Pipelines*, Chapter 4).
+  * `config/input_config.yml`: Spark Ingestion configuration YAML file.
+  * `docker/docker-compose.yml`: Zookeeper, Kafka, and Schema Registry Compose setup.
+  * `input_data/user_events.json`: Sample event stream dataset.
+  * `json_producer.py`: Kafka JSON message producer script.
+  * `kafka_json_to_file_job.py`: PySpark job ingestion script with Spark SQL Kafka integration.
+  * `BUILD`: Pants build definition for the ingestion project.
 * `scripts/`: Python utility scripts.
   * `ai_pr_reviewer.py`: The AI code reviewer script powered by the Gemini API.
   * `BUILD`: Pants build definition for the scripts directory.

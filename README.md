@@ -35,6 +35,8 @@ data-engineering/
 │   ├── requirements.txt       # Lists project requirements (pandas, PySpark, etc.)
 │   └── user_reqs.lock         # Pants generated dependency lockfile
 ├── projects/                  # Directory containing all sub-projects
+│   ├── ingestion/             # Chapter 4 Kafka/Spark ingestion project
+│   └── essentials/            # Chapter 2 basic Spark examples
 └── scripts/
     ├── BUILD                  # Configures scripts targets for Pants
     └── ai_pr_reviewer.py      # Python script that runs Gemini AI code reviews
