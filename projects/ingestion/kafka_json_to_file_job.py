@@ -27,9 +27,11 @@ def run_ingestion_job(config_path: str, output_dir: str):
         config_path (str): Path to the ingestion YAML configuration file.
         output_dir (str): Target directory to save the output JSON events.
     """
+    # Load Kafka connection parameters and schema from config
     config = load_config(config_path)
     source_conf = config["data_sources"][0]
 
+    # Initialize PySpark session with Kafka integration
     spark = (
         SparkSession.builder.appName("KafkaJsonToFile")
         .master("local[*]")
@@ -40,6 +42,7 @@ def run_ingestion_job(config_path: str, output_dir: str):
         .getOrCreate()
     )
 
+    # Set up Kafka connection options
     kafka_options = {
         "kafka.bootstrap.servers": source_conf["kafka_config"]["bootstrap_servers"],
         "subscribe": source_conf["kafka_config"]["topic"],
@@ -52,14 +55,18 @@ def run_ingestion_job(config_path: str, output_dir: str):
     if not json_schema_str:
         raise ValueError("Missing 'json_schema' in config")
 
+    # Read raw binary data from Kafka topic into a DataFrame
     df_raw = spark.read.format("kafka").options(**kafka_options).load()
 
+    # Cast raw Kafka message payload from bytes to a JSON string
     df_json = df_raw.selectExpr("CAST(value AS STRING) as json_str")
 
+    # Parse JSON strings into structured columns based on schema
     df_parsed = df_json.select(
         from_json(col("json_str"), json_schema_str).alias("data")
     ).select("data.*")
 
+    # Write the structured data to the local filesystem
     df_parsed.write.mode("overwrite").json(output_dir)
 
     spark.stop()
