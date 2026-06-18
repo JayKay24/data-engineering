@@ -44,6 +44,15 @@ data-engineering/
 
 ---
 
+## 📁 Projects
+
+Each project under the `projects/` directory represents a separate learning milestone with self-contained instructions, docker components, and code:
+
+*   [projects/essentials/](projects/essentials/) — Basic local PySpark processing examples (see [projects/essentials/README.md](projects/essentials/README.md)).
+*   [projects/ingestion/](projects/ingestion/) — Real-time event ingestion using Kafka and Spark Streaming (see [projects/ingestion/README.md](projects/ingestion/README.md)).
+
+---
+
 ## 🚀 Getting Started
 
 ### 1. Prerequisites
