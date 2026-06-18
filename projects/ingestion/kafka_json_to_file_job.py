@@ -1,3 +1,8 @@
+# %% [markdown]
+# # Kafka JSON to File Ingestion Job
+# Extracts user events from a Kafka topic, parses them according to a schema config, and writes them to the local filesystem.
+
+# %%
 import argparse
 import os
 import yaml
@@ -5,12 +10,23 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, from_json
 
 
+# %%
 def load_config(path):
+    """Loads YAML configuration file."""
     with open(path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 
+# %%
 def run_ingestion_job(config_path: str, output_dir: str):
+    """Runs Spark Streaming ingestion job to extract JSON events from Kafka,
+
+    parses them using a JSON schema, and writes them to output_dir.
+
+    Args:
+        config_path (str): Path to the ingestion YAML configuration file.
+        output_dir (str): Target directory to save the output JSON events.
+    """
     config = load_config(config_path)
     source_conf = config["data_sources"][0]
 
@@ -49,6 +65,7 @@ def run_ingestion_job(config_path: str, output_dir: str):
     spark.stop()
 
 
+# %%
 if __name__ == "__main__":
     script_dir = os.path.dirname(os.path.abspath(__file__))
     default_config = os.path.join(script_dir, "config/input_config.yml")
