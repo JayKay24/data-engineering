@@ -1,0 +1,8 @@
+data_sources:
+  - source_id: user_events_kafka
+    source_type: kafka
+    kafka_config:
+      bootstrap_servers: "localhost:9092"
+      topic: "user-events-json"
+      starting_offsets: "earliest"
+    json_schema: "STRUCT<user_id:INT,event_type:STRING,timestamp:STRING>"

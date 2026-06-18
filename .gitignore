@@ -21,6 +21,7 @@ pants.requirements.pex
 .DS_Store
 
 output_data
+output_json
 
 # Jupyter Notebooks
 .ipynb_checkpoints/
