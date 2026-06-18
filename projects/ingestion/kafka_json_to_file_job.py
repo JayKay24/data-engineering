@@ -11,7 +11,7 @@ from pyspark.sql.functions import col, from_json
 
 
 # %%
-def load_config(path):
+def load_config(path: str) -> dict:
     """Loads YAML configuration file."""
     with open(path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
@@ -87,9 +87,16 @@ def run_ingestion_job(config_path: str, output_dir: str, is_streaming: bool = Tr
                 .start()
             )
             try:
+                # Blocks the main thread, keeping the streaming query active until interrupted
                 query.awaitTermination()
             except KeyboardInterrupt:
-                print("Streaming query interrupted by user. Stopping...")
+                # Triggered when the user presses Ctrl+C in the terminal
+                import sys
+
+                print(
+                    "Streaming query interrupted by user. Stopping...",
+                    file=sys.stderr,
+                )
         else:
             # Batch Read
             df_raw = spark.read.format("kafka").options(**kafka_options).load()
@@ -98,7 +105,9 @@ def run_ingestion_job(config_path: str, output_dir: str, is_streaming: bool = Tr
                 from_json(col("json_str"), json_schema_str).alias("data")
             ).select("data.*")
 
-            # Coalesce to control partition count for small datasets
+            # Coalesce to 1 partition for small datasets to avoid many small files.
+            # For larger datasets, remove .coalesce(1) to let Spark manage partitions
+            # or repartition based on business keys.
             df_parsed.coalesce(1).write.mode("overwrite").json(output_dir)
     finally:
         spark.stop()
