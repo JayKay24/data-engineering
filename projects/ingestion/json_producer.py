@@ -1,7 +1,16 @@
 import json
 import os
 import sys
+from typing import TypedDict
+
 from confluent_kafka import Producer
+
+
+class UserEvent(TypedDict):
+    user_id: int
+    event_type: str
+    timestamp: str
+
 
 # Resolve paths relative to this script
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -12,7 +21,7 @@ producer_conf = {"bootstrap.servers": "localhost:9092"}
 producer = Producer(producer_conf)
 
 # Read events from input file with error handling
-records = []
+records: list[UserEvent] = []
 try:
     with open(INPUT_FILE_PATH, "r", encoding="utf-8") as f:
         for line in f:
