@@ -20,15 +20,23 @@ source .venv/bin/activate
 ```
 
 ### 1. Run WordCount
-Run the word count script:
+Run the word count script via Pants or Python:
 ```bash
+# Using Pants
+JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk-17.jdk/Contents/Home ./pants run projects/essentials:word_count
+
+# Or using Python directly
 python projects/essentials/word_count.py
 ```
 This generates the results in `projects/essentials/output_data/word_count/`.
 
 ### 2. Run Employee Partitioning
-Run the partitioning script:
+Run the partitioning script via Pants or Python:
 ```bash
+# Using Pants
+JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk-17.jdk/Contents/Home ./pants run projects/essentials:employee_partition
+
+# Or using Python directly
 python projects/essentials/employee_partition_by_hire_date.py
 ```
 This partitions the employee data and writes it to `projects/essentials/output_data/employee_partition/`.

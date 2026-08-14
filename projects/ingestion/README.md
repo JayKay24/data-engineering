@@ -30,14 +30,22 @@ cd ../../..
 ```
 
 ### 2. Produce mock JSON events
-Publish the sample events from `user_events.json` into Kafka:
+Publish the sample events from `user_events.json` into Kafka via Pants or Python:
 ```bash
+# Using Pants
+./pants run projects/ingestion:producer
+
+# Or using Python directly
 python projects/ingestion/json_producer.py
 ```
 
 ### 3. Run Ingestion Spark Job
 Extract the events from Kafka and write them to output directories:
 ```bash
+# Using Pants (ensure JAVA_HOME is set for PySpark 3.5.8 compatibility)
+JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk-17.jdk/Contents/Home ./pants run projects/ingestion:ingest_job
+
+# Or using Python directly
 python projects/ingestion/kafka_json_to_file_job.py
 ```
 Outputs are written locally to `projects/ingestion/output_json/user_events/`.
