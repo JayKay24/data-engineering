@@ -16,9 +16,10 @@ This project implements the advanced data ingestion and integration patterns der
 
 ## 🚀 How to Run
 
-Ensure your virtual environment is active:
+Ensure your virtual environment is active and `JAVA_HOME` (Java 17) is exported in your environment (as configured in `.env`):
 ```bash
 source .venv/bin/activate
+export $(cat .env | xargs)
 ```
 
 ### 1. Spin up Kafka Infrastucture
@@ -42,8 +43,8 @@ python projects/ingestion/json_producer.py
 ### 3. Run Ingestion Spark Job
 Extract the events from Kafka and write them to output directories:
 ```bash
-# Using Pants (ensure JAVA_HOME is set for PySpark 3.5.8 compatibility)
-JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk-17.jdk/Contents/Home ./pants run projects/ingestion:ingest_job
+# Using Pants
+./pants run projects/ingestion:ingest_job
 
 # Or using Python directly
 python projects/ingestion/kafka_json_to_file_job.py

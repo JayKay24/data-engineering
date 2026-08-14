@@ -14,16 +14,17 @@ This project contains initial Spark processing examples derived from Chapter 2 o
 
 ## 🚀 How to Run
 
-Before running the scripts, ensure your virtual environment is active:
+Ensure your virtual environment is active and `JAVA_HOME` (Java 17) is exported in your environment (as configured in `.env`):
 ```bash
 source .venv/bin/activate
+export $(cat .env | xargs)
 ```
 
 ### 1. Run WordCount
 Run the word count script via Pants or Python:
 ```bash
 # Using Pants
-JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk-17.jdk/Contents/Home ./pants run projects/essentials:word_count
+./pants run projects/essentials:word_count
 
 # Or using Python directly
 python projects/essentials/word_count.py
@@ -34,7 +35,7 @@ This generates the results in `projects/essentials/output_data/word_count/`.
 Run the partitioning script via Pants or Python:
 ```bash
 # Using Pants
-JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk-17.jdk/Contents/Home ./pants run projects/essentials:employee_partition
+./pants run projects/essentials:employee_partition
 
 # Or using Python directly
 python projects/essentials/employee_partition_by_hire_date.py
