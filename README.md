@@ -22,8 +22,9 @@ I manage this monorepo using **Pantsbuild (Pants)**, targeting **Python 3.10.x**
 ```text
 data-engineering/
 ├── .github/
-│   └── workflows/
-│       └── ai-review.yml      # CI pipeline for automated AI code reviews
+│   ├── workflows/
+│   │   └── ai-review.yml      # CI pipeline for automated AI code reviews
+│   └── pull_request_template.md # Template for standardizing PR descriptions
 ├── .gitignore                 # Python, Pants, and OS ignore rules
 ├── .pre-commit-config.yaml    # Configures the local pre-commit hook
 ├── .python-version            # Sets project-local Python to 3.10.9

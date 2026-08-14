@@ -19,6 +19,7 @@ This repository is a **Python Data Engineering Monorepo** managed by the **Pants
 
 ### Project Structure
 * `.github/workflows/ai-review.yml`: Automated Gemini AI PR reviewer workflow on GitHub Actions.
+* `.github/pull_request_template.md`: Template for standardizing PR descriptions.
 * `.pre-commit-config.yaml`: Pre-commit hooks configuration to run `./pants fmt` and `./pants lint` locally.
 * `3rdparty/`: Contains requirements (`requirements.txt`) and Pants lockfiles (`user_reqs.lock`).
 * `projects/essentials/`: First sub-project (derived generic implementation from *Hello Modern Data Pipelines*, Chapter 2).
