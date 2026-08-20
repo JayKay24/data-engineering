@@ -40,6 +40,12 @@ This repository is a **Python Data Engineering Monorepo** managed by the **Pants
   * `data/curated/`: Output directory for generated Delta Lake tables (ignored by git).
   * `data_processing_job.py`: Batch transformation and Delta Lake table curation PySpark script (`projects/transformation/spark:data_processing_job`).
   * `BUILD`: Pants build definition with `python_sources`, `resources`, and `pex_binary` targets.
+* `projects/transformation/dbt/`: Modular SQL transformation, dimensional modeling, and testing with dbt and DuckDB in an isolated Docker container.
+  * `Dockerfile` & `docker-compose.yml`: Containerized runtime with `dbt-duckdb` and DuckDB CLI.
+  * `Makefile`: Shortcut commands (`make dbt-build`, `make query`).
+  * `models/`: Staging, intermediate, and dimensional marts (`fct_customer_spending`, `fct_category_revenue`).
+  * `data/raw/`: Sample raw input JSON datasets.
+  * `BUILD`: Pants build definition for tracking project files.
 * `scripts/`: Python utility scripts.
   * `ai_pr_reviewer.py`: The AI code reviewer script powered by the Gemini API.
   * `BUILD`: Pants build definition for the scripts directory.

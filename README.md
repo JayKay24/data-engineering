@@ -37,7 +37,8 @@ data-engineering/
 │   └── user_reqs.lock         # Pants generated dependency lockfile
 ├── projects/                  # Directory containing all sub-projects
 │   ├── transformation/        # Data transformation and lakehouse curation
-│   │   └── spark/             # PySpark and Delta Lake batch curation
+│   │   ├── spark/             # PySpark and Delta Lake batch curation
+│   │   └── dbt/               # dbt and DuckDB SQL transformation pipeline
 │   ├── ingestion/             # Real-time event streaming and ingestion pipeline
 │   └── essentials/            # Core PySpark processing utilities
 ├── scripts/
@@ -55,6 +56,7 @@ Each project under the `projects/` directory represents a distinct data platform
 *   [projects/essentials/](projects/essentials/) — Core data processing utilities and foundational batch pipelines (see [projects/essentials/README.md](projects/essentials/README.md)).
 *   [projects/ingestion/](projects/ingestion/) — Real-time event ingestion using Kafka and Spark Structured Streaming (see [projects/ingestion/README.md](projects/ingestion/README.md)).
 *   [projects/transformation/spark/](projects/transformation/spark/) — Batch data transformation, multi-table dimensional enrichment, and Delta Lake table curation (see [projects/transformation/spark/README.md](projects/transformation/spark/README.md)).
+*   [projects/transformation/dbt/](projects/transformation/dbt/) — Modular SQL transformation, dimensional modeling, and testing with dbt and DuckDB in an isolated Docker environment (see [projects/transformation/dbt/README.md](projects/transformation/dbt/README.md)).
 
 ---
 

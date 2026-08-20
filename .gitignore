@@ -32,3 +32,13 @@ output_json
 metastore_db/
 derby.log
 spark-warehouse/
+# dbt & Database temporary files
+*.duckdb
+*.duckdb.wal
+dbt_packages/
+projects/transformation/dbt/target/
+projects/transformation/dbt/dbt_packages/
+projects/transformation/dbt/logs/
+projects/transformation/dbt/.user.yml
+.user.yml
+logs/

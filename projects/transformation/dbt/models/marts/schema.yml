@@ -1,0 +1,42 @@
+version: 2
+
+models:
+  - name: fct_customer_spending
+    description: "Aggregated customer quarterly spending, purchase volumes, and geographical distribution"
+    columns:
+      - name: customer_id
+        description: "Customer identifier"
+        tests:
+          - not_null
+      - name: purchase_quarter
+        description: "Quarter of the purchase transaction (1-4)"
+        tests:
+          - not_null
+      - name: total_spent
+        description: "Total amount spent by customer within the quarter"
+        tests:
+          - not_null
+      - name: transaction_count
+        description: "Count of distinct transactions"
+        tests:
+          - not_null
+
+  - name: fct_category_revenue
+    description: "Aggregated quarterly sales volume and gross revenue per product category"
+    columns:
+      - name: category
+        description: "Product category name"
+        tests:
+          - not_null
+      - name: purchase_quarter
+        description: "Quarter of transaction"
+        tests:
+          - not_null
+      - name: total_revenue
+        description: "Gross revenue generated within category and quarter"
+        tests:
+          - not_null
+      - name: units_sold
+        description: "Total transaction count / units sold"
+        tests:
+          - not_null

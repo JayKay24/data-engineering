@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  dbt:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/usr/app
+    environment:
+      - DBT_PROFILES_DIR=/usr/app
+    working_dir: /usr/app
