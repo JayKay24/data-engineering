@@ -1,0 +1,52 @@
+version: 2
+
+sources:
+  - name: raw_data
+    description: "Raw JSON transaction, customer, and product files ingested directly via DuckDB"
+    tables:
+      - name: raw_purchases
+        description: "Raw customer purchases JSON stream"
+      - name: raw_customers
+        description: "Raw customer profiles JSON file"
+      - name: raw_products
+        description: "Raw products catalog JSON file"
+
+models:
+  - name: stg_purchases
+    description: "Cleansed and parsed purchase transactions"
+    columns:
+      - name: purchase_id
+        description: "Primary key for transaction"
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+        description: "Foreign key referencing customer"
+        tests:
+          - not_null
+      - name: product_id
+        description: "Foreign key referencing product"
+        tests:
+          - not_null
+      - name: purchase_amount
+        description: "Monetary amount for the purchase in USD"
+        tests:
+          - not_null
+
+  - name: stg_customers
+    description: "Cleansed customer profiles"
+    columns:
+      - name: customer_id
+        description: "Primary key for customer"
+        tests:
+          - unique
+          - not_null
+
+  - name: stg_products
+    description: "Cleansed product catalog"
+    columns:
+      - name: product_id
+        description: "Primary key for product"
+        tests:
+          - unique
+          - not_null

@@ -1,0 +1,10 @@
+{"purchase_id": "txn_1001", "customer_id": "cust_1001", "product_id": "prod_101", "purchase_amount": "49.99", "timestamp": "2025-07-01T10:15:00Z", "payment_method": "credit_card"}
+{"purchase_id": "txn_1002", "customer_id": "cust_1002", "product_id": "prod_102", "purchase_amount": "19.99", "timestamp": "2025-07-01T11:20:00Z", "payment_method": "paypal"}
+{"purchase_id": "txn_1003", "customer_id": "cust_1003", "product_id": "prod_103", "purchase_amount": "5.99", "timestamp": "2025-07-01T12:05:00Z", "payment_method": "debit_card"}
+{"purchase_id": "txn_1004", "customer_id": "cust_1004", "product_id": "prod_104", "purchase_amount": "99.99", "timestamp": "2025-07-01T13:45:00Z", "payment_method": "credit_card"}
+{"purchase_id": "txn_1005", "customer_id": "cust_1005", "product_id": "prod_105", "purchase_amount": "15.00", "timestamp": "2025-07-01T14:00:00Z", "payment_method": "wallet"}
+{"purchase_id": "txn_1006", "customer_id": "cust_1001", "product_id": "prod_106", "purchase_amount": "25.00", "timestamp": "2025-07-01T14:30:00Z", "payment_method": "paypal"}
+{"purchase_id": "txn_1007", "customer_id": "cust_1006", "product_id": "prod_107", "purchase_amount": "49.00", "timestamp": "2025-07-01T15:10:00Z", "payment_method": "debit_card"}
+{"purchase_id": "txn_1008", "customer_id": "cust_1007", "product_id": "prod_108", "purchase_amount": "8.50", "timestamp": "2025-07-01T15:55:00Z", "payment_method": "credit_card"}
+{"purchase_id": "txn_1009", "customer_id": "cust_1008", "product_id": "prod_109", "purchase_amount": "120.00", "timestamp": "2025-07-01T16:20:00Z", "payment_method": "bank_transfer"}
+{"purchase_id": "txn_1010", "customer_id": "cust_1002", "product_id": "prod_110", "purchase_amount": "34.99", "timestamp": "2025-07-01T17:00:00Z", "payment_method": "credit_card"}

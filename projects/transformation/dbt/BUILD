@@ -1,0 +1,13 @@
+files(
+    name="dbt_project",
+    sources=[
+        "dbt_project.yml",
+        "profiles.yml",
+        "Dockerfile",
+        "docker-compose.yml",
+        "Makefile",
+        "models/**/*.sql",
+        "models/**/*.yml",
+        "data/raw/*.json",
+    ],
+)
