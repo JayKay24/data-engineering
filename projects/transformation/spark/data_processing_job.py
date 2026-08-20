@@ -10,6 +10,12 @@ import os
 import sys
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.functions import col, count, date_format, quarter, sum, to_timestamp
+from pyspark.sql.types import (
+    DoubleType,
+    StringType,
+    StructField,
+    StructType,
+)
 
 # --------------------
 # Logger Configuration
@@ -19,6 +25,38 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s",
 )
 logger = logging.getLogger("DataProcessingJob")
+
+# --------------------
+# Explicit Schema Definitions
+# --------------------
+PURCHASES_SCHEMA = StructType(
+    [
+        StructField("purchase_id", StringType(), True),
+        StructField("customer_id", StringType(), True),
+        StructField("product_id", StringType(), True),
+        StructField("purchase_amount", StringType(), True),
+        StructField("timestamp", StringType(), True),
+        StructField("payment_method", StringType(), True),
+    ]
+)
+
+CUSTOMERS_SCHEMA = StructType(
+    [
+        StructField("customer_id", StringType(), True),
+        StructField("segment", StringType(), True),
+        StructField("region", StringType(), True),
+        StructField("registration_date", StringType(), True),
+    ]
+)
+
+PRODUCTS_SCHEMA = StructType(
+    [
+        StructField("product_id", StringType(), True),
+        StructField("category", StringType(), True),
+        StructField("price", DoubleType(), True),
+        StructField("brand", StringType(), True),
+    ]
+)
 
 
 # %%
@@ -42,7 +80,7 @@ def init_spark(app_name: str = "DataProcessingJob") -> SparkSession:
 def load_raw_data(
     spark: SparkSession, raw_data_dir: str
 ) -> tuple[DataFrame, DataFrame, DataFrame]:
-    """Loads raw purchases, customers, and products JSON datasets from raw_data_dir."""
+    """Loads raw purchases, customers, and products JSON datasets using explicit schemas."""
     purchases_path = os.path.join(raw_data_dir, "purchases.json")
     customers_path = os.path.join(raw_data_dir, "customers.json")
     products_path = os.path.join(raw_data_dir, "products.json")
@@ -51,10 +89,10 @@ def load_raw_data(
         if not os.path.exists(path):
             raise FileNotFoundError(f"Input raw dataset not found at: {path}")
 
-    logger.info("Loading raw datasets from %s...", raw_data_dir)
-    purchases_df = spark.read.json(purchases_path)
-    customers_df = spark.read.json(customers_path)
-    products_df = spark.read.json(products_path)
+    logger.info("Loading raw datasets with schema enforcement from %s...", raw_data_dir)
+    purchases_df = spark.read.schema(PURCHASES_SCHEMA).json(purchases_path)
+    customers_df = spark.read.schema(CUSTOMERS_SCHEMA).json(customers_path)
+    products_df = spark.read.schema(PRODUCTS_SCHEMA).json(products_path)
 
     return purchases_df, customers_df, products_df
 
@@ -127,7 +165,9 @@ def write_delta_table(
 
 
 # %%
-def run_transformation_pipeline(raw_data_dir: str, curated_data_dir: str) -> None:
+def run_transformation_pipeline(
+    raw_data_dir: str, curated_data_dir: str, debug_mode: bool = False
+) -> None:
     """Executes the complete end-to-end Chapter 5 PySpark transformation pipeline."""
     spark = init_spark()
     try:
@@ -142,15 +182,16 @@ def run_transformation_pipeline(raw_data_dir: str, curated_data_dir: str) -> Non
         customer_spending = aggregate_customer_spending(enriched_purchases)
         category_revenue = aggregate_category_revenue(enriched_purchases)
 
-        # Display preview summaries in logs
-        logger.info("--- Enriched Purchases Preview ---")
-        enriched_purchases.show(5, truncate=False)
+        # Previews gated behind debug_mode to avoid redundant action executions in production
+        if debug_mode:
+            logger.info("--- Enriched Purchases Preview ---")
+            enriched_purchases.show(5, truncate=False)
 
-        logger.info("--- Customer Spending Aggregations Preview ---")
-        customer_spending.show(5, truncate=False)
+            logger.info("--- Customer Spending Aggregations Preview ---")
+            customer_spending.show(5, truncate=False)
 
-        logger.info("--- Category Revenue Aggregations Preview ---")
-        category_revenue.show(5, truncate=False)
+            logger.info("--- Category Revenue Aggregations Preview ---")
+            category_revenue.show(5, truncate=False)
 
         # Output curated Delta tables
         enriched_out = os.path.join(curated_data_dir, "enriched_purchases")
@@ -174,6 +215,7 @@ if __name__ == "__main__":
     script_dir = os.path.dirname(os.path.abspath(__file__))
     default_raw_dir = os.path.join(script_dir, "data/raw")
     default_curated_dir = os.path.join(script_dir, "data/curated")
+    env_debug = os.getenv("DEBUG_MODE", "false").lower() in ("true", "1", "yes")
 
     parser = argparse.ArgumentParser(
         description="PySpark Batch Data Transformation and Delta Lake Curation Pipeline"
@@ -190,10 +232,18 @@ if __name__ == "__main__":
         default=default_curated_dir,
         help="Target output directory for curated Delta Lake tables.",
     )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        default=env_debug,
+        help="Enable DataFrame show() previews for local debugging.",
+    )
 
     args = parser.parse_args()
     try:
-        run_transformation_pipeline(args.raw_data_dir, args.curated_data_dir)
+        run_transformation_pipeline(
+            args.raw_data_dir, args.curated_data_dir, debug_mode=args.debug
+        )
     except Exception as e:
         logger.error("Data processing pipeline failed with error: %s", e, exc_info=True)
         sys.exit(1)
