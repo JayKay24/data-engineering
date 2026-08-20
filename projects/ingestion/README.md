@@ -1,6 +1,6 @@
-# Ingestion Project (Chapter 4)
+# Real-Time Event Ingestion Pipeline
 
-This project implements the advanced data ingestion and integration patterns derived from Chapter 4 of *Hello Modern Data Pipelines*. It demonstrates real-time integration by producing events to a Kafka broker and streaming/reading them into Spark.
+This project implements an event-driven data ingestion pipeline using Apache Kafka and Apache Spark. It demonstrates real-time integration by producing structured event streams to a Kafka broker and streaming or batch-ingesting them into target storage using PySpark.
 
 ---
 

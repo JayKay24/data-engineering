@@ -1,0 +1,10 @@
+{"product_id": "prod_101", "category": "Books", "price": 49.99, "brand": "ReadMore"}
+{"product_id": "prod_102", "category": "Accessories", "price": 19.99, "brand": "TechGear"}
+{"product_id": "prod_103", "category": "Snacks", "price": 5.99, "brand": "QuickBite"}
+{"product_id": "prod_104", "category": "Electronics", "price": 99.99, "brand": "VoltX"}
+{"product_id": "prod_105", "category": "Stationery", "price": 15.00, "brand": "NoteSmart"}
+{"product_id": "prod_106", "category": "Fitness", "price": 25.00, "brand": "CorePulse"}
+{"product_id": "prod_107", "category": "Clothing", "price": 49.00, "brand": "UrbanWear"}
+{"product_id": "prod_108", "category": "Beauty", "price": 8.50, "brand": "GlowUp"}
+{"product_id": "prod_109", "category": "Appliances", "price": 120.00, "brand": "HomeEasy"}
+{"product_id": "prod_110", "category": "Toys", "price": 34.99, "brand": "FunPlay"}

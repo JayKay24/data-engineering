@@ -22,19 +22,24 @@ This repository is a **Python Data Engineering Monorepo** managed by the **Pants
 * `.github/pull_request_template.md`: Template for standardizing PR descriptions.
 * `.pre-commit-config.yaml`: Pre-commit hooks configuration to run `./pants fmt` and `./pants lint` locally.
 * `3rdparty/`: Contains requirements (`requirements.txt`) and Pants lockfiles (`user_reqs.lock`).
-* `projects/essentials/`: First sub-project (derived generic implementation from *Hello Modern Data Pipelines*, Chapter 2).
+* `projects/essentials/`: Core batch processing utilities & local PySpark foundations.
   * `word_count.py`: Local text processing WordCount Spark script (`projects/essentials:word_count`).
   * `employee_partition_by_hire_date.py`: Local partitioning Spark script (`projects/essentials:employee_partition`).
   * `input_data/`: Small CSV/txt sample inputs.
   * `output_data/`: Automatically generated Spark output targets (ignored by git).
   * `BUILD`: Pants build definition with `python_sources` and `pex_binary` targets.
-* `projects/ingestion/`: Ingestion project (derived implementation from *Hello Modern Data Pipelines*, Chapter 4).
+* `projects/ingestion/`: Real-time streaming & event-driven ingestion pipeline.
   * `config/input_config.yml`: Spark Ingestion configuration YAML file.
   * `docker/docker-compose.yml`: Zookeeper, Kafka, and Schema Registry Compose setup.
   * `input_data/user_events.json`: Sample event stream dataset.
   * `json_producer.py`: Kafka JSON message producer script (`projects/ingestion:producer`).
   * `kafka_json_to_file_job.py`: PySpark job ingestion script with Spark SQL Kafka integration (`projects/ingestion:ingest_job`).
   * `BUILD`: Pants build definition with `python_sources` and `pex_binary` targets.
+* `projects/transformation/spark/`: Lakehouse data transformation, dimensional enrichment, and Delta Lake curation.
+  * `data/raw/`: Raw sample datasets (`customers.json`, `products.json`, `purchases.json`).
+  * `data/curated/`: Output directory for generated Delta Lake tables (ignored by git).
+  * `data_processing_job.py`: Batch transformation and Delta Lake table curation PySpark script (`projects/transformation/spark:data_processing_job`).
+  * `BUILD`: Pants build definition with `python_sources`, `resources`, and `pex_binary` targets.
 * `scripts/`: Python utility scripts.
   * `ai_pr_reviewer.py`: The AI code reviewer script powered by the Gemini API.
   * `BUILD`: Pants build definition for the scripts directory.
