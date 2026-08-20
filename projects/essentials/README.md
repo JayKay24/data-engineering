@@ -1,6 +1,6 @@
-# Essentials Project (Chapter 2)
+# Core Data Processing Utilities
 
-This project contains initial Spark processing examples derived from Chapter 2 of *Hello Modern Data Pipelines*. It demonstrates basic local batch data processing using PySpark.
+This project contains foundational PySpark data processing and partitioning routines. It demonstrates local batch data extraction, text processing, and dataset partitioning techniques using PySpark.
 
 ---
 

@@ -1,6 +1,6 @@
-# PySpark Transformation & Delta Lake Curation (Chapter 5)
+# Batch Transformation & Lakehouse Curation
 
-This project implements the batch data transformation, multi-table enrichment, and Delta Lake table curation patterns derived from Chapter 5 of *Hello Modern Data Pipelines*.
+This project implements a scalable PySpark batch transformation and dimensional data curation pipeline using Delta Lake. It cleanses raw transactional records, joins them with customer and product dimensions, computes business aggregations, and writes curated lakehouse tables.
 
 ---
 

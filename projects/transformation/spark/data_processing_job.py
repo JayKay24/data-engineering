@@ -1,5 +1,5 @@
 # %% [markdown]
-# # Chapter 05: PySpark Batch Transformation Pipeline with Delta Lake
+# # PySpark Batch Transformation Pipeline with Delta Lake
 # Cleanses raw transactional purchases, joins with customer and product dimensions,
 # calculates business aggregations, and writes curated Delta Lake tables.
 
@@ -168,7 +168,7 @@ def write_delta_table(
 def run_transformation_pipeline(
     raw_data_dir: str, curated_data_dir: str, debug_mode: bool = False
 ) -> None:
-    """Executes the complete end-to-end Chapter 5 PySpark transformation pipeline."""
+    """Executes the complete end-to-end PySpark transformation pipeline."""
     spark = init_spark()
     try:
         purchases_raw, customers_raw, products_raw = load_raw_data(spark, raw_data_dir)

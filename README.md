@@ -36,10 +36,10 @@ data-engineering/
 │   ├── requirements.txt       # Lists project requirements (pandas, PySpark, etc.)
 │   └── user_reqs.lock         # Pants generated dependency lockfile
 ├── projects/                  # Directory containing all sub-projects
-│   ├── transformation/        # Chapter 5 transformation project
+│   ├── transformation/        # Data transformation and lakehouse curation
 │   │   └── spark/             # PySpark and Delta Lake batch curation
-│   ├── ingestion/             # Chapter 4 Kafka/Spark ingestion project
-│   └── essentials/            # Chapter 2 basic Spark examples
+│   ├── ingestion/             # Real-time event streaming and ingestion pipeline
+│   └── essentials/            # Core PySpark processing utilities
 ├── scripts/
 │   ├── BUILD                  # Configures scripts targets for Pants
 │   └── ai_pr_reviewer.py      # Python script that runs Gemini AI code reviews
@@ -50,11 +50,11 @@ data-engineering/
 
 ## 📁 Projects
 
-Each project under the `projects/` directory represents a separate learning milestone with self-contained instructions, docker components, and code:
+Each project under the `projects/` directory represents a distinct data platform capability:
 
-*   [projects/essentials/](projects/essentials/) — Basic local PySpark processing examples (see [projects/essentials/README.md](projects/essentials/README.md)).
-*   [projects/ingestion/](projects/ingestion/) — Real-time event ingestion using Kafka and Spark Streaming (see [projects/ingestion/README.md](projects/ingestion/README.md)).
-*   [projects/transformation/spark/](projects/transformation/spark/) — Batch data transformation, enrichment, and Delta Lake table curation (see [projects/transformation/spark/README.md](projects/transformation/spark/README.md)).
+*   [projects/essentials/](projects/essentials/) — Core data processing utilities and foundational batch pipelines (see [projects/essentials/README.md](projects/essentials/README.md)).
+*   [projects/ingestion/](projects/ingestion/) — Real-time event ingestion using Kafka and Spark Structured Streaming (see [projects/ingestion/README.md](projects/ingestion/README.md)).
+*   [projects/transformation/spark/](projects/transformation/spark/) — Batch data transformation, multi-table dimensional enrichment, and Delta Lake table curation (see [projects/transformation/spark/README.md](projects/transformation/spark/README.md)).
 
 ---
 
