@@ -22,6 +22,8 @@ pants.requirements.pex
 
 output_data
 output_json
+**/data/curated/
+**/data/_delta_log/
 
 # Jupyter Notebooks
 .ipynb_checkpoints/

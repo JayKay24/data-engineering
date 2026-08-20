@@ -1,0 +1,8 @@
+{"customer_id": "cust_1001", "segment": "premium", "region": "North", "registration_date": "2023-03-10"}
+{"customer_id": "cust_1002", "segment": "standard", "region": "East", "registration_date": "2024-01-15"}
+{"customer_id": "cust_1003", "segment": "premium", "region": "West", "registration_date": "2023-11-20"}
+{"customer_id": "cust_1004", "segment": "standard", "region": "South", "registration_date": "2024-06-01"}
+{"customer_id": "cust_1005", "segment": "basic", "region": "Central", "registration_date": "2025-02-12"}
+{"customer_id": "cust_1006", "segment": "premium", "region": "North", "registration_date": "2023-08-05"}
+{"customer_id": "cust_1007", "segment": "basic", "region": "West", "registration_date": "2024-11-23"}
+{"customer_id": "cust_1008", "segment": "standard", "region": "East", "registration_date": "2023-12-01"}

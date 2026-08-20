@@ -35,6 +35,11 @@ This repository is a **Python Data Engineering Monorepo** managed by the **Pants
   * `json_producer.py`: Kafka JSON message producer script (`projects/ingestion:producer`).
   * `kafka_json_to_file_job.py`: PySpark job ingestion script with Spark SQL Kafka integration (`projects/ingestion:ingest_job`).
   * `BUILD`: Pants build definition with `python_sources` and `pex_binary` targets.
+* `projects/transformation/spark/`: Transformation & curation project (derived implementation from *Hello Modern Data Pipelines*, Chapter 5).
+  * `data/raw/`: Raw sample datasets (`customers.json`, `products.json`, `purchases.json`).
+  * `data/curated/`: Output directory for generated Delta Lake tables (ignored by git).
+  * `data_processing_job.py`: Batch transformation and Delta Lake table curation PySpark script (`projects/transformation/spark:data_processing_job`).
+  * `BUILD`: Pants build definition with `python_sources`, `resources`, and `pex_binary` targets.
 * `scripts/`: Python utility scripts.
   * `ai_pr_reviewer.py`: The AI code reviewer script powered by the Gemini API.
   * `BUILD`: Pants build definition for the scripts directory.

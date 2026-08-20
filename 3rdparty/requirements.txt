@@ -1,5 +1,6 @@
 # Third-party Python dependencies for the data engineering projects.
-pyspark>=3.3.0,<4.0.0
+pyspark==3.5.8
 pre-commit>=3.0.0
 pyyaml
 confluent-kafka[jsonschema]
+delta-spark==3.2.0

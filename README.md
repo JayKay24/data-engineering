@@ -36,11 +36,14 @@ data-engineering/
 │   ├── requirements.txt       # Lists project requirements (pandas, PySpark, etc.)
 │   └── user_reqs.lock         # Pants generated dependency lockfile
 ├── projects/                  # Directory containing all sub-projects
+│   ├── transformation/        # Chapter 5 transformation project
+│   │   └── spark/             # PySpark and Delta Lake batch curation
 │   ├── ingestion/             # Chapter 4 Kafka/Spark ingestion project
 │   └── essentials/            # Chapter 2 basic Spark examples
-└── scripts/
-    ├── BUILD                  # Configures scripts targets for Pants
-    └── ai_pr_reviewer.py      # Python script that runs Gemini AI code reviews
+├── scripts/
+│   ├── BUILD                  # Configures scripts targets for Pants
+│   └── ai_pr_reviewer.py      # Python script that runs Gemini AI code reviews
+└── tests/                     # Monorepo unit/integration test suites
 ```
 
 ---
@@ -51,6 +54,7 @@ Each project under the `projects/` directory represents a separate learning mile
 
 *   [projects/essentials/](projects/essentials/) — Basic local PySpark processing examples (see [projects/essentials/README.md](projects/essentials/README.md)).
 *   [projects/ingestion/](projects/ingestion/) — Real-time event ingestion using Kafka and Spark Streaming (see [projects/ingestion/README.md](projects/ingestion/README.md)).
+*   [projects/transformation/spark/](projects/transformation/spark/) — Batch data transformation, enrichment, and Delta Lake table curation (see [projects/transformation/spark/README.md](projects/transformation/spark/README.md)).
 
 ---
 
