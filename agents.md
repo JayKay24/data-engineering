@@ -3,7 +3,7 @@
 Welcome, Agent! This file serves as the source of truth for the codebase architecture, environment setup, and rules of engagement for this repository. 
 
 > [!IMPORTANT]
-> **Rule of Preservation:** When making significant updates to the codebase (e.g., adding sub-projects, updating dependencies, changing configurations, or introducing new pipelines), you **MUST** update both the main `README.md` and this `agents.md` file to keep the documentation and agent context synchronized.
+> **Rule of Preservation:** When making significant updates to the codebase (e.g., adding sub-projects, updating dependencies, changing configurations, adding or removing tools of significance, or introducing new pipelines), you **MUST** update both the main `README.md` (including its tech stack shield badges) and this `agents.md` file to keep the documentation and agent context synchronized.
 
 ---
 
