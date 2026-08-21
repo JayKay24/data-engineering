@@ -121,3 +121,9 @@ When I am ready to start coding a new project:
     *   If I need a new external library (e.g., `pandas`), I add it to `3rdparty/requirements.txt`.
     *   Regenerate the lockfile: `./pants generate-lockfiles`
     *   Pants will **automatically infer** imports in my Python files—no need to manually declare dependencies in `BUILD` files!
+
+---
+
+## 🙏 Acknowledgements
+
+This workspace and the pipelines within are inspired by the book [*Hello, Modern Data Pipelines*](https://a.co/d/09CDz27y) by Raj Kishore Singh.
