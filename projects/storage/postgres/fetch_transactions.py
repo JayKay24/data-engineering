@@ -1,13 +1,9 @@
 import argparse
-import logging
 import sys
+from projects.common.logger import get_logger
 from projects.storage.postgres.config import get_connection
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-)
-logger = logging.getLogger("PostgresFetch")
+logger = get_logger("PostgresFetch")
 
 
 def fetch_transaction(transaction_id: str) -> None:

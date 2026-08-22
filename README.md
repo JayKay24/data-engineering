@@ -50,6 +50,7 @@ data-engineering/
 │   ├── requirements.txt       # Lists project requirements (pandas, PySpark, etc.)
 │   └── user_reqs.lock         # Pants generated dependency lockfile
 ├── projects/                  # Directory containing all sub-projects
+│   ├── common/                # Shared utilities (structured logging, helpers)
 │   ├── storage/               # Strategic relational & cloud data storage
 │   │   ├── postgres/          # Dockerized PostgreSQL 16 transactional storage & CRUD
 │   │   └── cloud/             # Google Cloud Storage & BigQuery analytical queries
@@ -69,6 +70,8 @@ data-engineering/
 ## 📁 Projects
 
 Each project under the `projects/` directory represents a distinct data platform capability:
+
+*   [projects/common/](projects/common/) — Shared monorepo utilities including unified structured logging.
 
 *   [projects/storage/postgres/](projects/storage/postgres/) — Containerized PostgreSQL 16 transactional storage with automated DDL initialization and safe context-managed operations (see [projects/storage/postgres/README.md](projects/storage/postgres/README.md)).
 *   [projects/storage/cloud/](projects/storage/cloud/) — Cloud lakehouse data access (GCS) and warehouse analytics (BigQuery) using standard GCP clients (see [projects/storage/cloud/README.md](projects/storage/cloud/README.md)).

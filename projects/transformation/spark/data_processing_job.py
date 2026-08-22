@@ -5,7 +5,6 @@
 
 # %%
 import argparse
-import logging
 import os
 import sys
 from pyspark.sql import DataFrame, SparkSession
@@ -16,15 +15,12 @@ from pyspark.sql.types import (
     StructField,
     StructType,
 )
+from projects.common.logger import get_logger
 
 # --------------------
 # Logger Configuration
 # --------------------
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-)
-logger = logging.getLogger("DataProcessingJob")
+logger = get_logger("DataProcessingJob")
 
 # --------------------
 # Explicit Schema Definitions

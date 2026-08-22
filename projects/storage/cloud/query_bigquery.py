@@ -1,13 +1,9 @@
 import argparse
-import logging
 import sys
+from projects.common.logger import get_logger
 from projects.storage.cloud.config import get_bigquery_client, get_gcp_config
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-)
-logger = logging.getLogger("BigQueryClient")
+logger = get_logger("BigQueryClient")
 
 
 def query_bigquery(query_str: str, limit: int = 10) -> None:

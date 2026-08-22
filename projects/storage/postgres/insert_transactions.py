@@ -1,13 +1,9 @@
 import argparse
-import logging
 import sys
+from projects.common.logger import get_logger
 from projects.storage.postgres.config import get_connection
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-)
-logger = logging.getLogger("PostgresInsert")
+logger = get_logger("PostgresInsert")
 
 
 def insert_transaction(transaction_id: str, customer_id: str, amount: float) -> None:

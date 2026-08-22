@@ -1,15 +1,11 @@
 import argparse
 import io
-import logging
 import sys
 import pandas as pd
+from projects.common.logger import get_logger
 from projects.storage.cloud.config import get_gcp_config, get_storage_client
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-)
-logger = logging.getLogger("GCSReader")
+logger = get_logger("GCSReader")
 
 
 def list_and_read_gcs_data(bucket_name: str, prefix: str = "", limit: int = 5) -> None:
