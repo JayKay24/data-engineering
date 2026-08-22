@@ -59,7 +59,7 @@ PRODUCTS_SCHEMA = StructType(
 def init_spark(app_name: str = "DataProcessingJob") -> SparkSession:
     """Initializes and returns a SparkSession configured with Delta Lake 3.x support."""
     logger.info("Initializing SparkSession with Delta Lake support...")
-    return (
+    spark = (
         SparkSession.builder.appName(app_name)
         .master("local[*]")
         .config("spark.jars.packages", "io.delta:delta-spark_2.12:3.2.0")
@@ -70,6 +70,8 @@ def init_spark(app_name: str = "DataProcessingJob") -> SparkSession:
         )
         .getOrCreate()
     )
+    spark.sparkContext.setLogLevel("WARN")
+    return spark
 
 
 # %%

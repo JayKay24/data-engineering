@@ -1,7 +1,8 @@
+from contextlib import contextmanager
 import os
-from typing import TypedDict
-import psycopg2
+from typing import Generator, TypedDict
 from psycopg2.extensions import connection as PgConnection
+from psycopg2.pool import ThreadedConnectionPool
 
 
 class PostgresConfig(TypedDict):
@@ -10,6 +11,9 @@ class PostgresConfig(TypedDict):
     dbname: str
     user: str
     password: str
+
+
+_connection_pool: ThreadedConnectionPool | None = None
 
 
 def get_postgres_config() -> PostgresConfig:
@@ -23,7 +27,21 @@ def get_postgres_config() -> PostgresConfig:
     }
 
 
-def get_connection() -> PgConnection:
-    """Establishes and returns a psycopg2 database connection."""
-    config = get_postgres_config()
-    return psycopg2.connect(**config)
+def get_pool(minconn: int = 1, maxconn: int = 10) -> ThreadedConnectionPool:
+    """Initializes (if not already initialized) and returns a ThreadedConnectionPool singleton."""
+    global _connection_pool
+    if _connection_pool is None or _connection_pool.closed:
+        config = get_postgres_config()
+        _connection_pool = ThreadedConnectionPool(minconn, maxconn, **config)
+    return _connection_pool
+
+
+@contextmanager
+def get_connection() -> Generator[PgConnection, None, None]:
+    """Context manager that borrows a connection from the pool and automatically returns it."""
+    pool = get_pool()
+    conn = pool.getconn()
+    try:
+        yield conn
+    finally:
+        pool.putconn(conn)

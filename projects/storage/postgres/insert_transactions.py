@@ -19,6 +19,7 @@ def insert_transaction(transaction_id: str, customer_id: str, amount: float) -> 
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(sql, (transaction_id, customer_id, amount))
+        conn.commit()
     logger.info(
         "Successfully inserted transaction %s (Customer: %s, Amount: $%.2f)",
         transaction_id,
@@ -47,6 +48,7 @@ def insert_sample_transactions() -> None:
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.executemany(sql, sample_records)
+        conn.commit()
     logger.info("Batch insertion completed successfully!")
 
 
