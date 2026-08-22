@@ -1,9 +1,15 @@
 import os
-from typing import Any
+from typing import TypedDict
 from google.cloud import bigquery, storage
 
 
-def get_gcp_config() -> dict[str, Any]:
+class GCPConfig(TypedDict):
+    project_id: str
+    gcs_bucket: str
+    bq_dataset: str
+
+
+def get_gcp_config() -> GCPConfig:
     """Retrieves GCP configuration settings from environment variables."""
     return {
         "project_id": os.getenv(
