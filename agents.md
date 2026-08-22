@@ -22,6 +22,19 @@ This repository is a **Python Data Engineering Monorepo** managed by the **Pants
 * `.github/pull_request_template.md`: Template for standardizing PR descriptions.
 * `.pre-commit-config.yaml`: Pre-commit hooks configuration to run `./pants fmt` and `./pants lint` locally.
 * `3rdparty/`: Contains requirements (`requirements.txt`) and Pants lockfiles (`user_reqs.lock`).
+* `projects/common/`: Shared monorepo utilities.
+  * `logger.py`: Centralized structured logging factory (`get_logger`).
+  * `BUILD`: Pants build definition with `python_sources` target.
+* `projects/storage/postgres/`: Relational transactional storage with PostgreSQL 16.
+  * `docker/docker-compose.yml` & `docker/init.sql`: Containerized PostgreSQL 16-alpine with automated DDL schema bootstrap.
+  * `config.py`: Environment variable connection factory with sensible defaults.
+  * `insert_transactions.py` & `fetch_transactions.py`: Context-managed transactional CRUD operations.
+  * `BUILD`: Pants build definition with `python_sources` and `pex_binary` targets.
+* `projects/storage/cloud/`: Cloud lakehouse and warehouse storage access with Google Cloud.
+  * `config.py`: GCP client configuration for GCS and BigQuery.
+  * `read_gcs_data.py`: Object listing and streaming/pandas reader for GCS data lakes.
+  * `query_bigquery.py`: Parameterized analytical queries against BigQuery data warehouse.
+  * `BUILD`: Pants build definition with `python_sources` and `pex_binary` targets.
 * `projects/essentials/`: Core batch processing utilities & local PySpark foundations.
   * `word_count.py`: Local text processing WordCount Spark script (`projects/essentials:word_count`).
   * `employee_partition_by_hire_date.py`: Local partitioning Spark script (`projects/essentials:employee_partition`).

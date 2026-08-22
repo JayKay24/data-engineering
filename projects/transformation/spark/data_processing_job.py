@@ -5,7 +5,6 @@
 
 # %%
 import argparse
-import logging
 import os
 import sys
 from pyspark.sql import DataFrame, SparkSession
@@ -16,15 +15,12 @@ from pyspark.sql.types import (
     StructField,
     StructType,
 )
+from projects.common.logger import get_logger
 
 # --------------------
 # Logger Configuration
 # --------------------
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-)
-logger = logging.getLogger("DataProcessingJob")
+logger = get_logger("DataProcessingJob")
 
 # --------------------
 # Explicit Schema Definitions
@@ -63,9 +59,8 @@ PRODUCTS_SCHEMA = StructType(
 def init_spark(app_name: str = "DataProcessingJob") -> SparkSession:
     """Initializes and returns a SparkSession configured with Delta Lake 3.x support."""
     logger.info("Initializing SparkSession with Delta Lake support...")
-    return (
+    spark = (
         SparkSession.builder.appName(app_name)
-        .master("local[*]")
         .config("spark.jars.packages", "io.delta:delta-spark_2.12:3.2.0")
         .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
         .config(
@@ -74,6 +69,8 @@ def init_spark(app_name: str = "DataProcessingJob") -> SparkSession:
         )
         .getOrCreate()
     )
+    spark.sparkContext.setLogLevel("WARN")
+    return spark
 
 
 # %%
