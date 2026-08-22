@@ -6,6 +6,8 @@
   <img src="https://img.shields.io/badge/Apache_Spark-3.5-E25A1C?style=for-the-badge&logo=apachespark&logoColor=white" alt="Apache Spark" />
   <img src="https://img.shields.io/badge/Delta_Lake-3.2-003366?style=for-the-badge&logo=delta&logoColor=white" alt="Delta Lake" />
   <img src="https://img.shields.io/badge/Apache_Kafka-2.14-231F20?style=for-the-badge&logo=apachekafka&logoColor=white" alt="Apache Kafka" />
+  <img src="https://img.shields.io/badge/PostgreSQL-16-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" />
+  <img src="https://img.shields.io/badge/Google_Cloud-4285F4?style=for-the-badge&logo=googlecloud&logoColor=white" alt="Google Cloud" />
   <img src="https://img.shields.io/badge/dbt-1.8-FF694B?style=for-the-badge&logo=dbt&logoColor=white" alt="dbt" />
   <img src="https://img.shields.io/badge/DuckDB-1.1-FFF000?style=for-the-badge&logo=duckdb&logoColor=black" alt="DuckDB" />
   <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker" />
@@ -48,6 +50,9 @@ data-engineering/
 │   ├── requirements.txt       # Lists project requirements (pandas, PySpark, etc.)
 │   └── user_reqs.lock         # Pants generated dependency lockfile
 ├── projects/                  # Directory containing all sub-projects
+│   ├── storage/               # Strategic relational & cloud data storage
+│   │   ├── postgres/          # Dockerized PostgreSQL 16 transactional storage & CRUD
+│   │   └── cloud/             # Google Cloud Storage & BigQuery analytical queries
 │   ├── transformation/        # Data transformation and lakehouse curation
 │   │   ├── spark/             # PySpark and Delta Lake batch curation
 │   │   └── dbt/               # dbt and DuckDB SQL transformation pipeline
@@ -65,6 +70,8 @@ data-engineering/
 
 Each project under the `projects/` directory represents a distinct data platform capability:
 
+*   [projects/storage/postgres/](projects/storage/postgres/) — Containerized PostgreSQL 16 transactional storage with automated DDL initialization and safe context-managed operations (see [projects/storage/postgres/README.md](projects/storage/postgres/README.md)).
+*   [projects/storage/cloud/](projects/storage/cloud/) — Cloud lakehouse data access (GCS) and warehouse analytics (BigQuery) using standard GCP clients (see [projects/storage/cloud/README.md](projects/storage/cloud/README.md)).
 *   [projects/essentials/](projects/essentials/) — Core data processing utilities and foundational batch pipelines (see [projects/essentials/README.md](projects/essentials/README.md)).
 *   [projects/ingestion/](projects/ingestion/) — Real-time event ingestion using Kafka and Spark Structured Streaming (see [projects/ingestion/README.md](projects/ingestion/README.md)).
 *   [projects/transformation/spark/](projects/transformation/spark/) — Batch data transformation, multi-table dimensional enrichment, and Delta Lake table curation (see [projects/transformation/spark/README.md](projects/transformation/spark/README.md)).
