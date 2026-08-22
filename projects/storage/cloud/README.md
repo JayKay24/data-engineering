@@ -49,3 +49,6 @@ Execute an interactive query and inspect results formatted as a DataFrame:
 ```bash
 ./pants run projects/storage/cloud:query_bigquery -- --query "SELECT * FROM \`my-project.retail_warehouse.fct_customer_spending\` LIMIT 10"
 ```
+
+> [!NOTE]
+> For large BigQuery query results, consider adding a `LIMIT` clause or leveraging the BigQuery Storage Read API with pagination to avoid high memory consumption when converting to pandas DataFrames.

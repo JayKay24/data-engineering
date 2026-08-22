@@ -38,10 +38,14 @@ def get_pool(minconn: int = 1, maxconn: int = 10) -> ThreadedConnectionPool:
 
 @contextmanager
 def get_connection() -> Generator[PgConnection, None, None]:
-    """Context manager that borrows a connection from the pool and automatically returns it."""
+    """Context manager that borrows a connection from the pool, commits on success, rollbacks on error, and returns it."""
     pool = get_pool()
     conn = pool.getconn()
     try:
         yield conn
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
     finally:
         pool.putconn(conn)

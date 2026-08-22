@@ -61,7 +61,6 @@ def init_spark(app_name: str = "DataProcessingJob") -> SparkSession:
     logger.info("Initializing SparkSession with Delta Lake support...")
     spark = (
         SparkSession.builder.appName(app_name)
-        .master("local[*]")
         .config("spark.jars.packages", "io.delta:delta-spark_2.12:3.2.0")
         .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
         .config(
