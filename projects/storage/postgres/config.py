@@ -1,10 +1,18 @@
 import os
-from typing import Any
+from typing import TypedDict
 import psycopg2
 from psycopg2.extensions import connection as PgConnection
 
 
-def get_postgres_config() -> dict[str, Any]:
+class PostgresConfig(TypedDict):
+    host: str
+    port: int
+    dbname: str
+    user: str
+    password: str
+
+
+def get_postgres_config() -> PostgresConfig:
     """Retrieves PostgreSQL connection parameters from environment variables with sensible defaults."""
     return {
         "host": os.getenv("POSTGRES_HOST", "localhost"),
