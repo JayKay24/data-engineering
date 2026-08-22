@@ -10,4 +10,9 @@ pex_binary(
 pex_binary(
     name="query_bigquery",
     entry_point="query_bigquery.py",
+    dependencies=[
+        "3rdparty:reqs#pandas",
+        "3rdparty:reqs#db-dtypes",
+        "3rdparty:reqs#pyarrow",
+    ],
 )

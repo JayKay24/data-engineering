@@ -10,12 +10,14 @@
 //   ],
 //   "generated_with_requirements": [
 //     "confluent-kafka[jsonschema]",
+//     "db-dtypes>=1.2.0",
 //     "delta-spark==3.2.0",
 //     "google-cloud-bigquery>=3.20.0",
 //     "google-cloud-storage>=2.14.0",
 //     "pandas>=2.0.0",
 //     "pre-commit>=3.0.0",
 //     "psycopg2-binary>=2.9.9",
+//     "pyarrow>=14.0.0",
 //     "pyspark==3.5.8",
 //     "pyyaml"
 //   ],
@@ -766,6 +768,30 @@
           ],
           "requires_python": "!=3.9.0,!=3.9.1,>=3.9",
           "version": "50.0.0"
+        },
+        {
+          "artifacts": [
+            {
+              "algorithm": "sha256",
+              "hash": "450b94cd010cfa6d4d13cca2593009eba4fbe15516084c332cde1a47bbce0625",
+              "url": "https://files.pythonhosted.org/packages/83/5a/5601050daf8f21d201e7ff68cda559aac56b5be18632876daf7a711809b5/db_dtypes-1.7.1-py3-none-any.whl"
+            },
+            {
+              "algorithm": "sha256",
+              "hash": "75adf3bdf3174a6474ea4162d9a345ea0b3102ec4fd603e69ec26b6e8a99145a",
+              "url": "https://files.pythonhosted.org/packages/7d/bc/b348b35245452af9a6c8a360ae3434f027b919349a786d1cb73ded0c234e/db_dtypes-1.7.1.tar.gz"
+            }
+          ],
+          "project_name": "db-dtypes",
+          "requires_dists": [
+            "numpy<=2.2.6,>=1.24.0; python_version == \"3.10\"",
+            "numpy>=1.24.0; python_version != \"3.10\"",
+            "packaging>=24.2.0",
+            "pandas<4.0.0,>=1.5.3",
+            "pyarrow>=13.0.0"
+          ],
+          "requires_python": ">=3.10",
+          "version": "1.7.1"
         },
         {
           "artifacts": [
@@ -1697,6 +1723,49 @@
           "artifacts": [
             {
               "algorithm": "sha256",
+              "hash": "cab40b1edfef0262e0e5251aa2c58d75630f24d06dd7794480243acc001a1d7d",
+              "url": "https://files.pythonhosted.org/packages/cb/3c/f89d1bd76d5f3284c2a44d7d7ebbd8204535e5ae2b41f4077069b4ff2ec6/pyarrow-25.0.1-cp310-cp310-musllinux_1_2_x86_64.whl"
+            },
+            {
+              "algorithm": "sha256",
+              "hash": "0b1edbb2f385a6a65e9711b62ba86ac54a7816a3f8d17bb3e8a5929d65fb2485",
+              "url": "https://files.pythonhosted.org/packages/0a/3e/5cd70becb51e1d044c54ba5e627424a6e87df5b98008cbd22cc6abd409ca/pyarrow-25.0.1-cp310-cp310-macosx_12_0_arm64.whl"
+            },
+            {
+              "algorithm": "sha256",
+              "hash": "9150a83248bfed9813ea3c3af74c3856c1984d444aa28e58bf7733b9750ddf6a",
+              "url": "https://files.pythonhosted.org/packages/3d/e3/27f57f80141379d60defe6703eb50a707325706f07fedfd1312c7a751995/pyarrow-25.0.1.tar.gz"
+            },
+            {
+              "algorithm": "sha256",
+              "hash": "514ddb60285631af068875550c90eddc181db3e8e63a032b1559be189e82f056",
+              "url": "https://files.pythonhosted.org/packages/3f/d1/0dd64fd06de0333b808a02f60981635f067b71aad3a30698a9a104fae778/pyarrow-25.0.1-cp310-cp310-musllinux_1_2_aarch64.whl"
+            },
+            {
+              "algorithm": "sha256",
+              "hash": "bddd0c4f7630c2a3ddf6347c1bdaa79d97bcf6bd445f9e60c816b7d77c85a5ae",
+              "url": "https://files.pythonhosted.org/packages/42/34/e138b451fd3970a6eda4599f68ae3b2b32b661bc958de3239d54a0bf6575/pyarrow-25.0.1-cp310-cp310-manylinux_2_28_aarch64.whl"
+            },
+            {
+              "algorithm": "sha256",
+              "hash": "a4d6d5e9a3d1879a97c08ded0c797579b7965eafd0f0c26c30b45ccc06db939b",
+              "url": "https://files.pythonhosted.org/packages/57/5c/f8fc0eb2de03464a557d5a4d0c15e972d73362414696618833b771f7eddd/pyarrow-25.0.1-cp310-cp310-manylinux_2_28_x86_64.whl"
+            },
+            {
+              "algorithm": "sha256",
+              "hash": "a4dd8bf99a8fac133efc0ed6a92f5fddbe2adba0d0f6dd720e39ba9855cea85c",
+              "url": "https://files.pythonhosted.org/packages/64/be/17599e086df264ea7dc221d1101e3131e181e00da428a2f9bd0358f0d06b/pyarrow-25.0.1-cp310-cp310-macosx_12_0_x86_64.whl"
+            }
+          ],
+          "project_name": "pyarrow",
+          "requires_dists": [],
+          "requires_python": ">=3.10",
+          "version": "25.0.1"
+        },
+        {
+          "artifacts": [
+            {
+              "algorithm": "sha256",
               "hash": "deda9277cfd454080ec40b207fb6df82206a3a2688735233cdcd8d3d565f088b",
               "url": "https://files.pythonhosted.org/packages/9a/3b/6163796d69c3977d1e4287bea4a6979161cbbdd170ebb430511e8e1999ce/pyasn1-0.6.4-py3-none-any.whl"
             },
@@ -2061,12 +2130,14 @@
   "prefer_older_binary": false,
   "requirements": [
     "confluent-kafka[jsonschema]",
+    "db-dtypes>=1.2.0",
     "delta-spark==3.2.0",
     "google-cloud-bigquery>=3.20.0",
     "google-cloud-storage>=2.14.0",
     "pandas>=2.0.0",
     "pre-commit>=3.0.0",
     "psycopg2-binary>=2.9.9",
+    "pyarrow>=14.0.0",
     "pyspark==3.5.8",
     "pyyaml"
   ],
