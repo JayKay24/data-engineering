@@ -1,5 +1,6 @@
 import argparse
 import sys
+from google.cloud import bigquery
 from projects.common.logger import get_logger
 from projects.storage.cloud.config import get_bigquery_client, get_gcp_config
 
@@ -9,10 +10,11 @@ logger = get_logger("BigQueryClient")
 def query_bigquery(query_str: str, limit: int = 10) -> None:
     """Executes a SQL query against Google Cloud BigQuery and logs tabular output."""
     client = get_bigquery_client()
-    logger.info("Executing BigQuery job...")
+    logger.info("Executing BigQuery job (max_results=%d)...", limit)
     logger.info("Query:\n%s", query_str)
 
-    query_job = client.query(query_str)
+    job_config = bigquery.QueryJobConfig(max_results=limit)
+    query_job = client.query(query_str, job_config=job_config)
     results = query_job.result()
 
     df = results.to_dataframe()
