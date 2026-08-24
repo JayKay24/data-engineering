@@ -35,6 +35,11 @@ This repository is a **Python Data Engineering Monorepo** managed by the **Pants
   * `read_gcs_data.py`: Object listing and streaming/pandas reader for GCS data lakes.
   * `query_bigquery.py`: Parameterized analytical queries against BigQuery data warehouse.
   * `BUILD`: Pants build definition with `python_sources` and `pex_binary` targets.
+* `projects/quality/`: Data quality, governance, and validation pipelines.
+  * `data/raw/user_data.csv`: Shared raw dataset with intentional edge cases for validation tests.
+  * `great_expectations/validate_user_data.py`: Automated assertion validation using Great Expectations Fluent API (`projects/quality/great_expectations:validate`).
+  * `pydeequ/validate_pyspark_deequ.py`: Distributed data quality checks on PySpark using Amazon Deequ (`projects/quality/pydeequ:validate`).
+  * `BUILD`: Pants build definitions for shared resources and execution binaries.
 * `projects/essentials/`: Core batch processing utilities & local PySpark foundations.
   * `word_count.py`: Local text processing WordCount Spark script (`projects/essentials:word_count`).
   * `employee_partition_by_hire_date.py`: Local partitioning Spark script (`projects/essentials:employee_partition`).
