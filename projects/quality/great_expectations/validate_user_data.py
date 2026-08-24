@@ -139,15 +139,26 @@ if __name__ == "__main__":
         default=default_output,
         help="Path to save output JSON validation report",
     )
+    parser.add_argument(
+        "--fail-on-error",
+        action="store_true",
+        help="Exit with non-zero exit code (1) if validation expectations fail (ideal for CI/CD pipelines)",
+    )
 
     args = parser.parse_args()
 
     try:
         is_valid = validate_user_data(args.input_csv, args.output_report)
         if not is_valid:
-            logger.warning(
-                "Data quality validation failed on one or more expectations (expected for test dataset with known issues)."
-            )
+            if args.fail_on_error:
+                logger.error(
+                    "Data quality validation failed on one or more expectations. Failing job due to --fail-on-error."
+                )
+                sys.exit(1)
+            else:
+                logger.warning(
+                    "Data quality validation failed on one or more expectations (expected for sample dataset with intentional edge cases)."
+                )
     except Exception as e:
         logger.error(
             "Great Expectations validation failed with error: %s", e, exc_info=True

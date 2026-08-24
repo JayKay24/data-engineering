@@ -75,7 +75,7 @@ def validate_user_data_deequ(
 
     if output_dir:
         logger.info("Saving verification results to %s...", output_dir)
-        result_df.repartition(1).write.mode("overwrite").json(output_dir)
+        result_df.coalesce(1).write.mode("overwrite").json(output_dir)
         logger.info("Verification results persisted successfully!")
 
     return result_df
