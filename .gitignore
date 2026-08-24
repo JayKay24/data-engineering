@@ -42,3 +42,7 @@ projects/transformation/dbt/logs/
 projects/transformation/dbt/.user.yml
 .user.yml
 logs/
+
+# Data Quality output files
+projects/quality/output/
+**/great_expectations/uncommitted/

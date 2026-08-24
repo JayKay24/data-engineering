@@ -8,6 +8,7 @@
   <img src="https://img.shields.io/badge/Apache_Kafka-2.14-231F20?style=for-the-badge&logo=apachekafka&logoColor=white" alt="Apache Kafka" />
   <img src="https://img.shields.io/badge/PostgreSQL-16-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" />
   <img src="https://img.shields.io/badge/Google_Cloud-4285F4?style=for-the-badge&logo=googlecloud&logoColor=white" alt="Google Cloud" />
+  <img src="https://img.shields.io/badge/Great_Expectations-1.2-FF671F?style=for-the-badge&logo=greatexpectations&logoColor=white" alt="Great Expectations" />
   <img src="https://img.shields.io/badge/dbt-1.8-FF694B?style=for-the-badge&logo=dbt&logoColor=white" alt="dbt" />
   <img src="https://img.shields.io/badge/DuckDB-1.1-FFF000?style=for-the-badge&logo=duckdb&logoColor=black" alt="DuckDB" />
   <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker" />
@@ -54,6 +55,9 @@ data-engineering/
 │   ├── storage/               # Strategic relational & cloud data storage
 │   │   ├── postgres/          # Dockerized PostgreSQL 16 transactional storage & CRUD
 │   │   └── cloud/             # Google Cloud Storage & BigQuery analytical queries
+│   ├── quality/               # Data quality, governance, and validation pipelines
+│   │   ├── great_expectations/# Great Expectations Fluent API validation engine
+│   │   └── pydeequ/           # Scalable Apache Spark data quality checks with Amazon Deequ
 │   ├── transformation/        # Data transformation and lakehouse curation
 │   │   ├── spark/             # PySpark and Delta Lake batch curation
 │   │   └── dbt/               # dbt and DuckDB SQL transformation pipeline
@@ -72,6 +76,8 @@ data-engineering/
 Each project under the `projects/` directory represents a distinct data platform capability:
 
 *   [projects/common/](projects/common/) — Shared monorepo utilities including unified structured logging.
+*   [projects/quality/great_expectations/](projects/quality/great_expectations/) — Automated tabular data quality validation using Great Expectations Fluent API (see [projects/quality/great_expectations/README.md](projects/quality/great_expectations/README.md)).
+*   [projects/quality/pydeequ/](projects/quality/pydeequ/) — Distributed data quality verification and metric auditing with Amazon Deequ and PySpark (see [projects/quality/pydeequ/README.md](projects/quality/pydeequ/README.md)).
 
 *   [projects/storage/postgres/](projects/storage/postgres/) — Containerized PostgreSQL 16 transactional storage with automated DDL initialization and safe context-managed operations (see [projects/storage/postgres/README.md](projects/storage/postgres/README.md)).
 *   [projects/storage/cloud/](projects/storage/cloud/) — Cloud lakehouse data access (GCS) and warehouse analytics (BigQuery) using standard GCP clients (see [projects/storage/cloud/README.md](projects/storage/cloud/README.md)).

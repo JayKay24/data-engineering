@@ -1,0 +1,11 @@
+user_id,email,signup_date,country
+1,john@example.com,2025-07-01 10:15:00,US
+2,,2025-07-02 12:30:00,IN
+3,sam@example.com,2025-07-03 09:45:00,UK
+4,amy@example.com,invalid_date,US
+5,paul@example.com,2025-07-04 16:20:00,FR
+6,mira@example.com,2025-07-05 14:10:00,IN
+7,,2025-07-06 11:50:00,US
+8,nina@example.com,2025-07-07 08:05:00,UK
+9,jake@example.com,2025-07-08 18:30:00,US
+10,john@example.com,2025-07-09 07:25:00,CA
