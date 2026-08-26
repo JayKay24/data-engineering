@@ -160,7 +160,9 @@ def run_ingestion_job(config_path: str, output_dir: str, is_streaming: bool = Tr
                 ).alias("data")
             ).select("data.*")
 
-            # Coalesce to 1 partition for small datasets to avoid many small files.
+            # Note: coalesce(1) is used here for local demonstration to output a single consolidated JSON file.
+            # In production at scale, partition by business keys (e.g., .repartition("event_type").write.partitionBy("event_type"))
+            # to distribute writes evenly across executor cores.
             df_deserialized.coalesce(1).write.mode("overwrite").json(output_dir)
     finally:
         spark.stop()

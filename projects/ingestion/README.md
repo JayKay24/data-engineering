@@ -53,6 +53,10 @@ python projects/ingestion/kafka_json_to_file_job.py --batch
 ```
 Outputs are written locally to `projects/ingestion/output_json/user_events/`.
 
+> [!NOTE]
+> **Partitioning Strategy Note**:
+> `.coalesce(1)` is used in batch mode strictly for local demonstration purposes to consolidate sample output into a single JSON file. In production environments processing large event streams, dynamic repartitioning by a business key (e.g., `.repartition("event_type").write.partitionBy("event_type")`) should be used to avoid executor bottlenecks and ensure distributed writes.
+
 ---
 
 ## 📌 Roadmap & Features
@@ -60,3 +64,5 @@ Outputs are written locally to `projects/ingestion/output_json/user_events/`.
 - [x] **Schema Registry Integration**:
   - Schema-enforced Avro serialization with `confluent-kafka[avro]` and Schema Registry registration.
   - PySpark Avro deserialization with ABRiS (`za.co.absa:abris_2.12:6.4.0`) resolving schemas dynamically from Schema Registry.
+- [x] **Container Health Orchestration**:
+  - Automated Docker Compose service readiness health checks (`zookeeper` -> `kafka` -> `schema-registry`) to prevent startup race conditions.

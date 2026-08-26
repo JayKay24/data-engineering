@@ -7,6 +7,9 @@ from confluent_kafka import Producer
 from confluent_kafka.schema_registry import SchemaRegistryClient
 from confluent_kafka.schema_registry.avro import AvroSerializer
 from confluent_kafka.serialization import MessageField, SerializationContext
+from projects.common.logger import get_logger
+
+logger = get_logger("KafkaAvroProducer")
 
 
 class UserEvent(TypedDict):
@@ -41,8 +44,9 @@ def main() -> None:
     # 1. Load Avro schema
     try:
         schema_str = load_avro_schema(SCHEMA_FILE_PATH)
+        logger.info("Loaded Avro schema from: %s", SCHEMA_FILE_PATH)
     except FileNotFoundError:
-        print(f"Error: Schema file not found at {SCHEMA_FILE_PATH}", file=sys.stderr)
+        logger.error("Schema file not found at: %s", SCHEMA_FILE_PATH)
         sys.exit(1)
 
     # 2. Configure Schema Registry Client & Avro Serializer
@@ -70,26 +74,26 @@ def main() -> None:
                     event: UserEvent = json.loads(line_str)
                     serialized_value = avro_serializer(event, serialization_ctx)
                     producer.produce(topic=KAFKA_TOPIC, value=serialized_value)
-                    print(f"Produced Avro Event: {event} (Topic: {KAFKA_TOPIC})")
+                    logger.info(
+                        "Produced Avro Event: %s (Topic: %s)", event, KAFKA_TOPIC
+                    )
                 except json.JSONDecodeError as e:
-                    print(
-                        f"Skipping malformed JSON line: {line_str} - Error: {e}",
-                        file=sys.stderr,
+                    logger.warning(
+                        "Skipping malformed JSON line: %s - Error: %s", line_str, e
                     )
                 except Exception as e:
-                    print(
-                        f"Failed to serialize/produce event {line_str} - Error: {e}",
-                        file=sys.stderr,
+                    logger.error(
+                        "Failed to serialize/produce event %s - Error: %s", line_str, e
                     )
     except FileNotFoundError:
-        print(f"Error: Input file not found at {INPUT_FILE_PATH}", file=sys.stderr)
+        logger.error("Input file not found at: %s", INPUT_FILE_PATH)
         sys.exit(1)
     except IOError as e:
-        print(f"Error reading input file {INPUT_FILE_PATH}: {e}", file=sys.stderr)
+        logger.error("Error reading input file %s: %s", INPUT_FILE_PATH, e)
         sys.exit(1)
 
     producer.flush()
-    print("Flushed all messages to Kafka successfully.")
+    logger.info("Flushed all messages to Kafka successfully.")
 
 
 if __name__ == "__main__":
