@@ -6,7 +6,7 @@ This project implements an event-driven data ingestion pipeline using Apache Kaf
 
 ## 📁 Project Contents
 
-*   [docker/docker-compose.yml](projects/ingestion/docker/docker-compose.yml): Launches local Zookeeper, Kafka, and Confluent Schema Registry (`:8081`) containers.
+*   [projects/common/docker/docker-compose.yml](projects/common/docker/docker-compose.yml): Shared monorepo Zookeeper, Kafka, and Confluent Schema Registry (`:8081`) containers.
 *   [schemas/user_event.avsc](projects/ingestion/schemas/user_event.avsc): Apache Avro schema defining the contract for user activity events.
 *   [json_producer.py](projects/ingestion/json_producer.py): Python producer script that validates and encodes mock events using `confluent-kafka[avro]` and registers the schema with Schema Registry.
 *   [kafka_json_to_file_job.py](projects/ingestion/kafka_json_to_file_job.py): PySpark streaming/batch job that pulls Avro records from Kafka, dynamically resolves schema definitions via Schema Registry and ABRiS (`za.co.absa:abris_2.12`), and saves structured records locally.
@@ -24,11 +24,9 @@ export $(cat .env | xargs)
 ```
 
 ### 1. Spin up Kafka & Schema Registry Infrastructure
-Start the Zookeeper, Kafka, and Schema Registry containers:
+Start the shared Zookeeper, Kafka, and Schema Registry containers:
 ```bash
-cd projects/ingestion/docker
-docker-compose up -d
-cd ../../..
+docker compose -f projects/common/docker/docker-compose.yml up -d
 ```
 Schema Registry will be accessible at `http://localhost:8081`.
 
