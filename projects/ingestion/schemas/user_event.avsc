@@ -1,0 +1,23 @@
+{
+  "type": "record",
+  "name": "UserEvent",
+  "namespace": "com.dataengineering.events",
+  "doc": "Schema definition for real-time user activity event",
+  "fields": [
+    {
+      "name": "user_id",
+      "type": "int",
+      "doc": "Unique integer identifier for the user"
+    },
+    {
+      "name": "event_type",
+      "type": "string",
+      "doc": "Type of event (e.g. login, logout, purchase)"
+    },
+    {
+      "name": "timestamp",
+      "type": "string",
+      "doc": "ISO-8601 UTC timestamp when the event occurred"
+    }
+  ]
+}

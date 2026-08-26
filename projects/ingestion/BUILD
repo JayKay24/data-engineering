@@ -4,7 +4,7 @@ python_sources(
 
 resources(
     name="data_files",
-    sources=["config/*.yml", "input_data/*.json"],
+    sources=["config/*.yml", "input_data/*.json", "schemas/*.avsc"],
 )
 
 pex_binary(
