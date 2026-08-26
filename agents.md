@@ -24,6 +24,7 @@ This repository is a **Python Data Engineering Monorepo** managed by the **Pants
 * `3rdparty/`: Contains requirements (`requirements.txt`) and Pants lockfiles (`user_reqs.lock`).
 * `projects/common/`: Shared monorepo utilities.
   * `logger.py`: Centralized structured logging factory (`get_logger`).
+  * `kafka_avro.py`: Shared Avro producer serialization, schema loader, delivery callbacks, and PySpark ABRiS deserialization.
   * `docker/docker-compose.yml`: Shared Zookeeper, Kafka, and Confluent Schema Registry Compose setup.
   * `BUILD`: Pants build definition with `python_sources` target.
 * `projects/storage/postgres/`: Relational transactional storage with PostgreSQL 16.
@@ -51,15 +52,17 @@ This repository is a **Python Data Engineering Monorepo** managed by the **Pants
   * `config/input_config.yml`: Spark Ingestion configuration YAML file with Schema Registry URL.
   * `schemas/user_event.avsc`: Avro schema contract for event data.
   * `input_data/user_events.json`: Sample event stream dataset.
-  * `json_producer.py`: Kafka Avro message producer script (`projects/ingestion:producer`).
+  * `json_producer.py`: Compact Kafka Avro message producer script (`projects/ingestion:producer`).
   * `kafka_json_to_file_job.py`: PySpark ingestion script using ABRiS and Confluent Schema Registry (`projects/ingestion:ingest_job`).
   * `BUILD`: Pants build definition with `python_sources`, `resources`, and `pex_binary` targets.
 * `projects/realtime/clickstream/`: Real-time sliding window aggregation pipeline with Avro, Schema Registry, and Delta Lake.
   * `config/clickstream_config.yml`: Configuration file for Kafka, watermarking, windows, and sinks.
   * `schemas/clickstream_event.avsc`: Avro schema contract for user clickstream events.
   * `input_data/clickstream_events.json`: Sample raw clickstream event stream.
-  * `clickstream_producer.py`: Kafka Avro clickstream producer script (`projects/realtime/clickstream:producer`).
-  * `clickstream_aggregation_job.py`: PySpark Structured Streaming job computing URL counts and user activity metrics into Delta Lake (`projects/realtime/clickstream:stream_job`).
+  * `aggregations.py`: Spark sliding window and watermarking aggregations for URL and user activity.
+  * `sinks.py`: Streaming and batch sink adapters for Delta Lake and console outputs.
+  * `clickstream_producer.py`: Lightweight Kafka Avro clickstream producer script (`projects/realtime/clickstream:producer`).
+  * `clickstream_aggregation_job.py`: Orchestrator for PySpark Structured Streaming into Delta Lake (`projects/realtime/clickstream:stream_job`).
   * `BUILD`: Pants build definition with `python_sources`, `resources`, and `pex_binary` targets.
 * `projects/transformation/spark/`: Lakehouse data transformation, dimensional enrichment, and Delta Lake curation.
   * `data/raw/`: Raw sample datasets (`customers.json`, `products.json`, `purchases.json`).

@@ -1,6 +1,6 @@
 # Real-Time Clickstream Aggregation Pipeline
 
-This project implements a scalable real-time streaming pipeline for clickstream analytics inspired by Chapter 8 of *Hello Modern Data Pipelines*, re-architected with enterprise monorepo standards.
+This project implements a scalable real-time streaming pipeline for clickstream analytics, architected with enterprise monorepo standards.
 
 ## Architecture
 
