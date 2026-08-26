@@ -28,7 +28,13 @@ output_json
 # Jupyter Notebooks
 .ipynb_checkpoints/
 
-# Spark / Database temporary files
+# Spark / Database temporary files & checkpoints
+checkpoints/
+**/checkpoints/
+*_checkpoint/
+**/*_checkpoint/
+checkpoint/
+**/checkpoint/
 metastore_db/
 derby.log
 spark-warehouse/
