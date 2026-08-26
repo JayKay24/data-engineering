@@ -50,3 +50,12 @@ Extract the events from Kafka and write them to output directories:
 python projects/ingestion/kafka_json_to_file_job.py
 ```
 Outputs are written locally to `projects/ingestion/output_json/user_events/`.
+
+---
+
+## 📌 TODOs & Roadmap
+
+- [ ] **Schema Registry Integration**:
+  - Transition from raw JSON messages to schema-enforced formats (**Avro** or **JSON Schema with Schema Registry**).
+  - Update [json_producer.py](projects/ingestion/json_producer.py) to use `confluent_kafka.schema_registry` (`AvroSerializer` / `JSONSerializer`).
+  - Update [kafka_json_to_file_job.py](projects/ingestion/kafka_json_to_file_job.py) to deserialize incoming payloads with dynamic schema validation from Schema Registry (using `spark-avro` or ABRiS).
