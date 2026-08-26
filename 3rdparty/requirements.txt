@@ -2,7 +2,7 @@
 pyspark==3.5.8
 pre-commit>=3.0.0
 pyyaml
-confluent-kafka[jsonschema]
+confluent-kafka[avro]
 delta-spark==3.2.0
 psycopg2-binary>=2.9.9
 google-cloud-storage>=2.14.0

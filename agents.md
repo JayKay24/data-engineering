@@ -46,13 +46,14 @@ This repository is a **Python Data Engineering Monorepo** managed by the **Pants
   * `input_data/`: Small CSV/txt sample inputs.
   * `output_data/`: Automatically generated Spark output targets (ignored by git).
   * `BUILD`: Pants build definition with `python_sources` and `pex_binary` targets.
-* `projects/ingestion/`: Real-time streaming & event-driven ingestion pipeline.
-  * `config/input_config.yml`: Spark Ingestion configuration YAML file.
+* `projects/ingestion/`: Real-time streaming & event-driven ingestion pipeline with Avro & Schema Registry.
+  * `config/input_config.yml`: Spark Ingestion configuration YAML file with Schema Registry URL.
   * `docker/docker-compose.yml`: Zookeeper, Kafka, and Schema Registry Compose setup.
+  * `schemas/user_event.avsc`: Avro schema contract for event data.
   * `input_data/user_events.json`: Sample event stream dataset.
-  * `json_producer.py`: Kafka JSON message producer script (`projects/ingestion:producer`).
-  * `kafka_json_to_file_job.py`: PySpark job ingestion script with Spark SQL Kafka integration (`projects/ingestion:ingest_job`).
-  * `BUILD`: Pants build definition with `python_sources` and `pex_binary` targets.
+  * `json_producer.py`: Kafka Avro message producer script (`projects/ingestion:producer`).
+  * `kafka_json_to_file_job.py`: PySpark ingestion script using ABRiS and Confluent Schema Registry (`projects/ingestion:ingest_job`).
+  * `BUILD`: Pants build definition with `python_sources`, `resources`, and `pex_binary` targets.
 * `projects/transformation/spark/`: Lakehouse data transformation, dimensional enrichment, and Delta Lake curation.
   * `data/raw/`: Raw sample datasets (`customers.json`, `products.json`, `purchases.json`).
   * `data/curated/`: Output directory for generated Delta Lake tables (ignored by git).

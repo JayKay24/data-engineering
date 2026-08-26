@@ -6,6 +6,7 @@
   <img src="https://img.shields.io/badge/Apache_Spark-3.5-E25A1C?style=for-the-badge&logo=apachespark&logoColor=white" alt="Apache Spark" />
   <img src="https://img.shields.io/badge/Delta_Lake-3.2-003366?style=for-the-badge&logo=delta&logoColor=white" alt="Delta Lake" />
   <img src="https://img.shields.io/badge/Apache_Kafka-2.14-231F20?style=for-the-badge&logo=apachekafka&logoColor=white" alt="Apache Kafka" />
+  <img src="https://img.shields.io/badge/Schema_Registry-7.2-005571?style=for-the-badge&logo=confluent&logoColor=white" alt="Schema Registry" />
   <img src="https://img.shields.io/badge/PostgreSQL-16-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" />
   <img src="https://img.shields.io/badge/Google_Cloud-4285F4?style=for-the-badge&logo=googlecloud&logoColor=white" alt="Google Cloud" />
   <img src="https://img.shields.io/badge/Great_Expectations-1.2-FF671F?style=for-the-badge&logo=greatexpectations&logoColor=white" alt="Great Expectations" />
@@ -82,7 +83,7 @@ Each project under the `projects/` directory represents a distinct data platform
 *   [projects/storage/postgres/](projects/storage/postgres/) — Containerized PostgreSQL 16 transactional storage with automated DDL initialization and safe context-managed operations (see [projects/storage/postgres/README.md](projects/storage/postgres/README.md)).
 *   [projects/storage/cloud/](projects/storage/cloud/) — Cloud lakehouse data access (GCS) and warehouse analytics (BigQuery) using standard GCP clients (see [projects/storage/cloud/README.md](projects/storage/cloud/README.md)).
 *   [projects/essentials/](projects/essentials/) — Core data processing utilities and foundational batch pipelines (see [projects/essentials/README.md](projects/essentials/README.md)).
-*   [projects/ingestion/](projects/ingestion/) — Real-time event ingestion using Kafka and Spark Structured Streaming (see [projects/ingestion/README.md](projects/ingestion/README.md)).
+*   [projects/ingestion/](projects/ingestion/) — Real-time event ingestion using Kafka, Avro, Schema Registry, and Spark Structured Streaming with ABRiS (see [projects/ingestion/README.md](projects/ingestion/README.md)).
 *   [projects/transformation/spark/](projects/transformation/spark/) — Batch data transformation, multi-table dimensional enrichment, and Delta Lake table curation (see [projects/transformation/spark/README.md](projects/transformation/spark/README.md)).
 *   [projects/transformation/dbt/](projects/transformation/dbt/) — Modular SQL transformation, dimensional modeling, and testing with dbt and DuckDB in an isolated Docker environment (see [projects/transformation/dbt/README.md](projects/transformation/dbt/README.md)).
 

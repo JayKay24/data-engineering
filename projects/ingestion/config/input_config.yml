@@ -3,6 +3,9 @@ data_sources:
     source_type: kafka
     kafka_config:
       bootstrap_servers: "localhost:9092"
-      topic: "user-events-json"
+      topic: "user-events-avro"
       starting_offsets: "earliest"
-    json_schema: "STRUCT<user_id:INT,event_type:STRING,timestamp:STRING>"
+    schema_registry:
+      url: "http://localhost:8081"
+      subject: "user-events-avro-value"
+      schema_file: "schemas/user_event.avsc"
