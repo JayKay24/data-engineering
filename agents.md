@@ -24,6 +24,7 @@ This repository is a **Python Data Engineering Monorepo** managed by the **Pants
 * `3rdparty/`: Contains requirements (`requirements.txt`) and Pants lockfiles (`user_reqs.lock`).
 * `projects/common/`: Shared monorepo utilities.
   * `logger.py`: Centralized structured logging factory (`get_logger`).
+  * `docker/docker-compose.yml`: Shared Zookeeper, Kafka, and Confluent Schema Registry Compose setup.
   * `BUILD`: Pants build definition with `python_sources` target.
 * `projects/storage/postgres/`: Relational transactional storage with PostgreSQL 16.
   * `docker/docker-compose.yml` & `docker/init.sql`: Containerized PostgreSQL 16-alpine with automated DDL schema bootstrap.
@@ -48,7 +49,6 @@ This repository is a **Python Data Engineering Monorepo** managed by the **Pants
   * `BUILD`: Pants build definition with `python_sources` and `pex_binary` targets.
 * `projects/ingestion/`: Real-time streaming & event-driven ingestion pipeline with Avro & Schema Registry.
   * `config/input_config.yml`: Spark Ingestion configuration YAML file with Schema Registry URL.
-  * `docker/docker-compose.yml`: Zookeeper, Kafka, and Schema Registry Compose setup.
   * `schemas/user_event.avsc`: Avro schema contract for event data.
   * `input_data/user_events.json`: Sample event stream dataset.
   * `json_producer.py`: Kafka Avro message producer script (`projects/ingestion:producer`).

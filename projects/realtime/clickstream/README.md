@@ -46,9 +46,9 @@ projects/realtime/clickstream/
 ## Quickstart & Execution
 
 ### 1. Start Infrastructure (Kafka, Zookeeper, Schema Registry)
-Make sure the shared Kafka container stack from `projects/ingestion/docker` is up:
+Make sure the shared Kafka container stack from `projects/common/docker` is up:
 ```bash
-docker compose -f projects/ingestion/docker/docker-compose.yml up -d
+docker compose -f projects/common/docker/docker-compose.yml up -d
 ```
 
 ### 2. Produce Clickstream Events to Kafka
