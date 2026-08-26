@@ -1,0 +1,40 @@
+{
+  "type": "record",
+  "name": "ClickstreamEvent",
+  "namespace": "com.dataengineering.realtime",
+  "doc": "Schema definition for real-time clickstream user activity events.",
+  "fields": [
+    {
+      "name": "user_id",
+      "type": "string",
+      "doc": "Unique identifier of the user generating the event."
+    },
+    {
+      "name": "url",
+      "type": "string",
+      "doc": "Web page URL visited by the user."
+    },
+    {
+      "name": "event_type",
+      "type": "string",
+      "doc": "Interaction type (e.g., click, view, scroll, purchase)."
+    },
+    {
+      "name": "event_time",
+      "type": "string",
+      "doc": "ISO-8601 formatted timestamp of the event occurrence."
+    },
+    {
+      "name": "ip_address",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Client IP address."
+    },
+    {
+      "name": "user_agent",
+      "type": ["null", "string"],
+      "default": null,
+      "doc": "Client browser user agent."
+    }
+  ]
+}

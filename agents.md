@@ -54,6 +54,13 @@ This repository is a **Python Data Engineering Monorepo** managed by the **Pants
   * `json_producer.py`: Kafka Avro message producer script (`projects/ingestion:producer`).
   * `kafka_json_to_file_job.py`: PySpark ingestion script using ABRiS and Confluent Schema Registry (`projects/ingestion:ingest_job`).
   * `BUILD`: Pants build definition with `python_sources`, `resources`, and `pex_binary` targets.
+* `projects/realtime/clickstream/`: Real-time sliding window aggregation pipeline with Avro, Schema Registry, and Delta Lake.
+  * `config/clickstream_config.yml`: Configuration file for Kafka, watermarking, windows, and sinks.
+  * `schemas/clickstream_event.avsc`: Avro schema contract for user clickstream events.
+  * `input_data/clickstream_events.json`: Sample raw clickstream event stream.
+  * `clickstream_producer.py`: Kafka Avro clickstream producer script (`projects/realtime/clickstream:producer`).
+  * `clickstream_aggregation_job.py`: PySpark Structured Streaming job computing URL counts and user activity metrics into Delta Lake (`projects/realtime/clickstream:stream_job`).
+  * `BUILD`: Pants build definition with `python_sources`, `resources`, and `pex_binary` targets.
 * `projects/transformation/spark/`: Lakehouse data transformation, dimensional enrichment, and Delta Lake curation.
   * `data/raw/`: Raw sample datasets (`customers.json`, `products.json`, `purchases.json`).
   * `data/curated/`: Output directory for generated Delta Lake tables (ignored by git).

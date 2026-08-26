@@ -62,6 +62,8 @@ data-engineering/
 │   ├── transformation/        # Data transformation and lakehouse curation
 │   │   ├── spark/             # PySpark and Delta Lake batch curation
 │   │   └── dbt/               # dbt and DuckDB SQL transformation pipeline
+│   ├── realtime/              # Real-time event stream aggregation and analytics
+│   │   └── clickstream/       # Clickstream sliding window metrics & Delta Lake sinks
 │   ├── ingestion/             # Real-time event streaming and ingestion pipeline
 │   └── essentials/            # Core PySpark processing utilities
 ├── scripts/
@@ -77,6 +79,7 @@ data-engineering/
 Each project under the `projects/` directory represents a distinct data platform capability:
 
 *   [projects/common/](projects/common/) — Shared monorepo utilities including unified structured logging.
+*   [projects/realtime/clickstream/](projects/realtime/clickstream/) — Real-time event streaming, event-time sliding windows, watermarks, and Delta Lake sinks (see [projects/realtime/clickstream/README.md](projects/realtime/clickstream/README.md)).
 *   [projects/quality/great_expectations/](projects/quality/great_expectations/) — Automated tabular data quality validation using Great Expectations Fluent API (see [projects/quality/great_expectations/README.md](projects/quality/great_expectations/README.md)).
 *   [projects/quality/pydeequ/](projects/quality/pydeequ/) — Distributed data quality verification and metric auditing with Amazon Deequ and PySpark (see [projects/quality/pydeequ/README.md](projects/quality/pydeequ/README.md)).
 
