@@ -25,7 +25,17 @@ flowchart LR
 
 ---
 
-## Directory Structure
+## 📁 Project Contents & Structure
+
+*   [projects/common/docker/docker-compose.yml](projects/common/docker/docker-compose.yml): Shared monorepo Zookeeper, Kafka, and Confluent Schema Registry (`:8081`) containers.
+*   [config/clickstream_config.yml](projects/realtime/clickstream/config/clickstream_config.yml): Configuration defining Kafka parameters, Schema Registry endpoint, watermarking, sliding windows, and Delta Lake sinks.
+*   [schemas/clickstream_event.avsc](projects/realtime/clickstream/schemas/clickstream_event.avsc): Avro schema contract for user clickstream events.
+*   [input_data/clickstream_events.json](projects/realtime/clickstream/input_data/clickstream_events.json): Sample raw clickstream event stream.
+*   [aggregations.py](projects/realtime/clickstream/aggregations.py): Stateful event-time windowing and watermarking logic for URL metrics and user activity.
+*   [sinks.py](projects/realtime/clickstream/sinks.py): Modular streaming and batch sink writers (Delta Lake and Console).
+*   [clickstream_producer.py](projects/realtime/clickstream/clickstream_producer.py): Lightweight Avro event producer.
+*   [clickstream_aggregation_job.py](projects/realtime/clickstream/clickstream_aggregation_job.py): PySpark Structured Streaming pipeline orchestrator.
+*   [BUILD](projects/realtime/clickstream/BUILD): Pants build definitions (`lib`, `data_files`, `producer`, `stream_job`).
 
 ```text
 projects/realtime/clickstream/
@@ -37,8 +47,10 @@ projects/realtime/clickstream/
 │   └── clickstream_event.avsc              # Avro schema contract
 ├── input_data/
 │   └── clickstream_events.json             # Clickstream sample dataset
+├── aggregations.py                         # Spark window aggregations
+├── sinks.py                                # Delta & Console sink writers
 ├── clickstream_producer.py                 # Confluent Avro event producer
-└── clickstream_aggregation_job.py          # PySpark Streaming & Delta Lake aggregation job
+└── clickstream_aggregation_job.py          # Pipeline entry point & orchestrator
 ```
 
 ---
