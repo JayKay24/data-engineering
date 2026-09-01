@@ -6,5 +6,10 @@ RUN apt-get update && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 USER airflow
-COPY 3rdparty/requirements.txt /requirements.txt
-RUN pip install --no-cache-dir -r /requirements.txt
+ARG AIRFLOW_VERSION=2.9.3
+ARG PYTHON_VERSION=3.10
+RUN pip install --no-cache-dir \
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt" \
+    duckdb \
+    dbt-duckdb \
+    apache-airflow-providers-postgres

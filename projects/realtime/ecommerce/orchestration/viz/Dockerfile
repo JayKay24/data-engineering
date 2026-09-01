@@ -1,8 +1,11 @@
 FROM python:3.10-slim
 
 WORKDIR /app
-COPY 3rdparty/requirements.txt /app/requirements.txt
-RUN pip install --no-cache-dir -r /app/requirements.txt
+RUN pip install --no-cache-dir \
+    streamlit>=1.38.0 \
+    duckdb==1.1.0 \
+    pandas>=2.0.0 \
+    plotly>=5.24.0
 
 COPY projects/realtime/ecommerce/orchestration/viz /app
 
