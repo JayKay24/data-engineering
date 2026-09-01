@@ -115,6 +115,7 @@ This project is bootstrapped to work seamlessly with VS Code / Antigravity IDE w
 2. **STRICTLY LOCAL SCOPE:** Do not write or modify any VS Code/IDE configurations outside the `data-engineering` project directory.
 3. **PANTS COMPLIANCE:** Always follow the target-based workflow for Pants commands.
 4. **SPARK COMPATIBILITY:** Run PySpark tasks using Java 17 via the `JAVA_HOME` configuration found in `.env`.
+5. **DOCUMENTATION SYNCHRONIZATION:** Always synchronize both the root `README.md` (including badges and project tables), any relevant sub-project `README.md` files (such as `projects/realtime/ecommerce/README.md`), and `AGENTS.md` whenever architectural, configuration, dependency, or pipeline changes occur.
 
 ---
 
