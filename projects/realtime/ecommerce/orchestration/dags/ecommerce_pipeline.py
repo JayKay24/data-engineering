@@ -1,40 +1,50 @@
 from datetime import datetime, timedelta
 import glob
 import os
-import time
 from airflow import DAG
 from airflow.operators.bash import BashOperator
-from airflow.operators.python import PythonOperator
+from airflow.sensors.base import BaseSensorOperator
 
-def wait_for_stream_outputs(min_dirs: int = 3, timeout_min: int = 15) -> bool:
-    """Waits until at least `min_dirs` streaming directories contain valid parquet and delta commits."""
-    click_prefix = os.environ.get(
-        "CLICK_STREAM_OUTPUT_PREFIX", "/opt/project/output_data"
-    )
-    start = time.time()
-    targets = [
-        "url_counts",
-        "user_counts",
-        "url_conversion",
-        "category_sales",
-        "cart_metrics",
-        "session_funnels",
-        "top_urls_per_user",
-    ]
-    while True:
-        ready = 0
-        for t in targets:
-            delta_log_path = os.path.join(click_prefix, t, "_delta_log", "*.json")
-            parquet_path = os.path.join(click_prefix, t, "*.parquet")
-            if glob.glob(delta_log_path) or glob.glob(parquet_path):
-                ready += 1
-        if ready >= min_dirs:
-            return True
-        if time.time() - start > timeout_min * 60:
-            raise TimeoutError(
-                f"Timed out waiting for streaming parquet files in {click_prefix}"
-            )
-        time.sleep(10)
+
+class DeltaStreamSensor(BaseSensorOperator):
+    """Sensor that checks whether streaming Delta/Parquet outputs have committed data."""
+
+    def __init__(
+        self,
+        output_prefix: str = "/opt/project/output_data",
+        min_ready_tables: int = 3,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.output_prefix = output_prefix
+        self.min_ready_tables = min_ready_tables
+        self.targets = [
+            "url_counts",
+            "user_counts",
+            "url_conversion",
+            "category_sales",
+            "cart_metrics",
+            "session_funnels",
+            "top_urls_per_user",
+        ]
+
+    def poke(self, context) -> bool:
+        prefix = os.environ.get("CLICK_STREAM_OUTPUT_PREFIX", self.output_prefix)
+        ready_count = 0
+        for table in self.targets:
+            delta_log = os.path.join(prefix, table, "_delta_log", "*.json")
+            parquet_files = os.path.join(prefix, table, "*.parquet")
+            if glob.glob(delta_log) or glob.glob(parquet_files):
+                ready_count += 1
+
+        self.log.info(
+            "DeltaStreamSensor checked %s: %d/%d tables ready (minimum required: %d)",
+            prefix,
+            ready_count,
+            len(self.targets),
+            self.min_ready_tables,
+        )
+        return ready_count >= self.min_ready_tables
 
 
 default_args = {
@@ -52,10 +62,13 @@ with DAG(
     description="Refreshes DuckDB analytical marts from streaming Delta/Parquet outputs",
     tags=["ecommerce", "realtime", "batch"],
 ) as dag:
-    wait_for_stream = PythonOperator(
+    wait_for_stream = DeltaStreamSensor(
         task_id="wait_for_stream_outputs",
-        python_callable=wait_for_stream_outputs,
-        op_kwargs={"min_dirs": 3, "timeout_min": 15},
+        output_prefix="/opt/project/output_data",
+        min_ready_tables=3,
+        poke_interval=20,
+        timeout=600,
+        mode="reschedule",
     )
 
     dbt_build_staging = BashOperator(
