@@ -104,7 +104,7 @@ This project is bootstrapped to work seamlessly with VS Code / Antigravity IDE w
   }
   ```
 * **`.vscode/launch.json`**: Debugging configurations mapped to current files, leveraging the local `.env` file.
-* **`.env` (Git Ignored)**: Sets the correct `JAVA_HOME` to **Java 17** (overriding the system default Java 24 to maintain PySpark 3.x compatibility).
+* **`.env` (Git Ignored)**: Sets the correct `JAVA_HOME` to **Java 17** (overriding system default Java 24 to maintain PySpark 3.x compatibility), cloud project credentials, and the `AIRFLOW_FERNET_KEY` encryption key for Airflow container orchestration.
 
 ---
 

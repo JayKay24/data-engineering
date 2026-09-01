@@ -70,20 +70,34 @@ docker compose -f projects/common/docker/docker-compose.yml up -d
 
 ### 3. Run the Real-Time Streaming Aggregator
 ```bash
+# Streaming mode (continuous execution with Delta Lake sinks)
 ./pants run projects/realtime/ecommerce/streaming_layer:stream_job -- --sink delta
+
+# Batch mode (immediate single-pass execution for quick testing)
+./pants run projects/realtime/ecommerce/streaming_layer:stream_job -- --batch --sink delta
 ```
 
 ### 4. Execute Batch Transformations via dbt (Optional Standalone)
 ```bash
 cd projects/realtime/ecommerce/batch_layer
-make dbt-build
-make query
+make build      # Builds the local dbt container
+make dbt-build  # Runs dbt models and tests against DuckDB
+make query      # Interactive DuckDB CLI on data/ecommerce.duckdb
 ```
 
 ### 5. Launch Orchestration & Dashboard Cluster
+> **Prerequisite:** Ensure `AIRFLOW_FERNET_KEY` is present in your local `.env` file (e.g. `AIRFLOW_FERNET_KEY=IOYiXlIcJ8QVhBT2iVyuKc2ehyX7OcBt-_f1EPDyNqM=`).
+
 ```bash
 cd projects/realtime/ecommerce/orchestration
-make up
+make build  # Builds Airflow & Streamlit container images
+make up     # Starts Airflow, Postgres, and Streamlit in background
+make status # Checks container health status
 ```
-- **Airflow UI:** `http://localhost:8080` (admin / admin)
+- **Airflow Webserver UI:** `http://localhost:8080` (`admin` / `admin`)
 - **Streamlit Dashboard:** `http://localhost:8501`
+
+To stop all orchestration services:
+```bash
+make down
+```

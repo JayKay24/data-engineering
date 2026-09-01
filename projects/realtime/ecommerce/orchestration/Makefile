@@ -10,22 +10,25 @@ help:
 	@echo "  make status      - Check container status and health"
 	@echo "  make clean       - Stop containers and remove volumes"
 
+ENV_FILE := ../../../../.env
+COMPOSE := docker compose --env-file $(ENV_FILE)
+
 build:
-	docker compose build
+	$(COMPOSE) build
 
 up:
-	docker compose up -d
+	$(COMPOSE) up -d
 
 down:
-	docker compose down
+	$(COMPOSE) down
 
 restart: down up
 
 logs:
-	docker compose logs -f
+	$(COMPOSE) logs -f
 
 status:
-	docker compose ps
+	$(COMPOSE) ps
 
 clean:
-	docker compose down -v
+	$(COMPOSE) down -v
