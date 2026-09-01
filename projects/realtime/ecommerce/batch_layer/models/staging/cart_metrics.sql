@@ -9,4 +9,4 @@ select
   cast(purchase_count as integer) as purchase_count,
   cast(add_to_cart_rate as double) as add_to_cart_rate,
   cast(cart_abandonment as double) as cart_abandonment
-from read_parquet('{{ env_var("CLICK_STREAM_OUTPUT_PREFIX", "../output_data") }}/cart_metrics/*.parquet')
+from {{ get_stream_path('cart_metrics') }}

@@ -6,4 +6,4 @@ select
   category,
   cast(revenue as double) as revenue,
   cast(units   as integer) as units
-from read_parquet('{{ env_var("CLICK_STREAM_OUTPUT_PREFIX", "../output_data") }}/category_sales/*.parquet')
+from {{ get_stream_path('category_sales') }}

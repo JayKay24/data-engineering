@@ -6,4 +6,4 @@ select
   url,
   event_type,
   cast(count as integer) as count
-from read_parquet('{{ env_var("CLICK_STREAM_OUTPUT_PREFIX", "../output_data") }}/url_counts/*.parquet')
+from {{ get_stream_path('url_counts') }}

@@ -6,4 +6,4 @@ select
   user_id,
   url,
   cast(count as integer) as count
-from read_parquet('{{ env_var("CLICK_STREAM_OUTPUT_PREFIX", "../output_data") }}/top_urls_per_user/*.parquet')
+from {{ get_stream_path('top_urls_per_user') }}
