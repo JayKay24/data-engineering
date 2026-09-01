@@ -34,6 +34,7 @@ services:
       CLICK_STREAM_OUTPUT_PREFIX: /opt/project/output_data
       DBT_PROJ_DIR: /opt/project/batch_layer
       DUCKDB_PATH: /opt/project/batch_layer/data/ecommerce.duckdb
+      ECOMMERCE_CONFIG_PATH: /opt/project/streaming_layer/config/ecommerce_config.yml
     command: >
       bash -lc "
         airflow db init &&

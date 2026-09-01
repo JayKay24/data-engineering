@@ -1,9 +1,49 @@
 from datetime import datetime, timedelta
 import glob
 import os
+from pathlib import Path
+import yaml
 from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.sensors.base import BaseSensorOperator
+
+_CONFIG_PATH = Path(
+    os.environ.get(
+        "ECOMMERCE_CONFIG_PATH",
+        Path(__file__).resolve().parent.parent.parent
+        / "streaming_layer"
+        / "config"
+        / "ecommerce_config.yml",
+    )
+)
+
+_FALLBACK_SINKS = [
+    "url_counts",
+    "user_counts",
+    "url_conversion",
+    "category_sales",
+    "cart_metrics",
+    "session_funnels",
+    "top_urls_per_user",
+]
+
+
+def _load_sink_names(config_path: Path | None = None) -> list[str]:
+    """Loads sink table names from ecommerce_config.yml.
+
+    Falls back to a hardcoded list if the config file cannot be read,
+    so the DAG remains importable in environments without mounted volumes.
+    """
+    path = config_path or _CONFIG_PATH
+    try:
+        with open(path) as f:
+            config = yaml.safe_load(f)
+        sinks = config.get("sinks", [])
+        if sinks:
+            return sinks
+    except (OSError, yaml.YAMLError):
+        pass
+    return _FALLBACK_SINKS
 
 
 class DeltaStreamSensor(BaseSensorOperator):
@@ -18,15 +58,7 @@ class DeltaStreamSensor(BaseSensorOperator):
         super().__init__(**kwargs)
         self.output_prefix = output_prefix
         self.min_ready_tables = min_ready_tables
-        self.targets = [
-            "url_counts",
-            "user_counts",
-            "url_conversion",
-            "category_sales",
-            "cart_metrics",
-            "session_funnels",
-            "top_urls_per_user",
-        ]
+        self.targets = _load_sink_names()
 
     def poke(self, context) -> bool:
         prefix = os.environ.get("CLICK_STREAM_OUTPUT_PREFIX", self.output_prefix)

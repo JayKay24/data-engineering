@@ -22,3 +22,12 @@ storage:
   trigger_processing_time: "5 seconds"
   output_base_dir: "projects/realtime/ecommerce/output_data"
   checkpoint_base_dir: "projects/realtime/ecommerce/checkpoints"
+
+sinks:
+  - url_counts
+  - user_counts
+  - url_conversion
+  - category_sales
+  - cart_metrics
+  - session_funnels
+  - top_urls_per_user
