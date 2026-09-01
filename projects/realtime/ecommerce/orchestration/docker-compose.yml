@@ -4,7 +4,7 @@ x-airflow-env: &airflow_env
   AIRFLOW__WEBSERVER__RBAC: "true"
   AIRFLOW__SCHEDULER__DAG_DIR_LIST_INTERVAL: "20"
   AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "false"
-  AIRFLOW__CORE__FERNET_KEY: "8UVw1t3vQeY_5Gm4oR5w-EXAMPLE-CHANGE-ME-123456"
+  AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY:-IOYiXlIcJ8QVhBT2iVyuKc2ehyX7OcBt-_f1EPDyNqM=}
 
 services:
   postgres:
@@ -36,9 +36,10 @@ services:
       DUCKDB_PATH: /opt/project/batch_layer/data/ecommerce.duckdb
     command: >
       bash -lc "
-        airflow db upgrade &&
-        airflow users create --role Admin --username admin --password admin --firstname A --lastname D --email a@b.c || true &&
-        airflow webserver & airflow scheduler
+        airflow db init &&
+        airflow users create --role Admin --username admin --password admin --firstname Admin --lastname User --email admin@example.com || true &&
+        airflow webserver -p 8080 &
+        exec airflow scheduler
       "
     ports:
       - "8080:8080"
