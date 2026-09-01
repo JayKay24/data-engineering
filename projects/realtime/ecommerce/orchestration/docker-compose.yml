@@ -1,5 +1,3 @@
-version: "3.9"
-
 x-airflow-env: &airflow_env
   AIRFLOW__CORE__EXECUTOR: LocalExecutor
   AIRFLOW__CORE__LOAD_EXAMPLES: "false"
