@@ -1,0 +1,17 @@
+version: 2
+
+models:
+  - name: cumulative_users
+    description: "Historical cumulative user growth cohorts"
+  - name: daily_category_sales
+    description: "Aggregated daily category revenue and volume"
+  - name: monthly_category_sales
+    description: "Aggregated monthly category revenue trends"
+  - name: daily_top_urls
+    description: "Daily URL activity summaries by interaction type"
+  - name: daily_top_urls_per_user
+    description: "Top 5 visited URLs per user by day"
+  - name: daily_url_conversion
+    description: "Daily consolidated URL conversion performance"
+  - name: new_vs_returning_users
+    description: "Daily breakdown of new vs returning active users"

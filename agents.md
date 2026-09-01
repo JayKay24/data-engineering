@@ -55,15 +55,24 @@ This repository is a **Python Data Engineering Monorepo** managed by the **Pants
   * `json_producer.py`: Compact Kafka Avro message producer script (`projects/ingestion:producer`).
   * `kafka_json_to_file_job.py`: PySpark ingestion script using ABRiS and Confluent Schema Registry (`projects/ingestion:ingest_job`).
   * `BUILD`: Pants build definition with `python_sources`, `resources`, and `pex_binary` targets.
-* `projects/realtime/clickstream/`: Real-time sliding window aggregation pipeline with Avro, Schema Registry, and Delta Lake.
-  * `config/clickstream_config.yml`: Configuration file for Kafka, watermarking, windows, and sinks.
-  * `schemas/clickstream_event.avsc`: Avro schema contract for user clickstream events.
-  * `input_data/clickstream_events.json`: Sample raw clickstream event stream.
-  * `aggregations.py`: Spark sliding window and watermarking aggregations for URL and user activity.
-  * `sinks.py`: Streaming and batch sink adapters for Delta Lake and console outputs.
-  * `clickstream_producer.py`: Lightweight Kafka Avro clickstream producer script (`projects/realtime/clickstream:producer`).
-  * `clickstream_aggregation_job.py`: Orchestrator for PySpark Structured Streaming into Delta Lake (`projects/realtime/clickstream:stream_job`).
-  * `BUILD`: Pants build definition with `python_sources`, `resources`, and `pex_binary` targets.
+* `projects/realtime/ecommerce/`: E-Commerce Lambda Architecture platform (Streaming + Batch + Orchestration).
+  * `streaming_layer/`: PySpark Structured Streaming with Avro, Schema Registry, and Delta Lake.
+    * `config/ecommerce_config.yml`: Configuration for Kafka, watermarking, sliding windows, and Delta Lake sinks.
+    * `schemas/ecommerce_event.avsc`: Avro schema contract for e-commerce user activity and purchase events.
+    * `input_data/ecommerce_events.json`: Sample raw e-commerce event stream dataset.
+    * `aggregations.py`: Spark sliding window, session funnel, and conversion KPI aggregations.
+    * `sinks.py`: Multi-table streaming and batch sink adapters for Delta Lake and console outputs.
+    * `ecommerce_producer.py`: Kafka Avro message producer script (`projects/realtime/ecommerce/streaming_layer:producer`).
+    * `ecommerce_aggregation_job.py`: PySpark Structured Streaming orchestrator into Delta Lake (`projects/realtime/ecommerce/streaming_layer:stream_job`).
+    * `BUILD`: Pants build definition with `python_sources`, `resources`, and `pex_binary` targets.
+  * `batch_layer/`: Modular SQL transformations, dimensional marts, and freshness monitors with dbt and DuckDB.
+    * `Dockerfile`, `docker-compose.yml`, `Makefile`: Containerized runner (`make dbt-build`, `make query`).
+    * `macros/`: Centralized `get_stream_path` SQL macro for dynamic parquet pathing.
+    * `models/`: Staging views with column integrity tests, analytical marts (`cumulative_users`, `daily_category_sales`, `daily_url_conversion`), and freshness monitors (`last_ingest`).
+  * `orchestration/`: Containerized workflow orchestration and executive business intelligence.
+    * `docker-compose.yml` & `Makefile`: Containerized Airflow (LocalExecutor + Postgres 16) and Streamlit dashboard (`make up`, `make down`, `make status`).
+    * `dags/ecommerce_pipeline.py`: Airflow DAG using a custom `DeltaStreamSensor` to monitor streaming Delta commits and trigger dbt pipelines.
+    * `viz/`: Interactive real-time Streamlit dashboard (`app.py`, `viz.Dockerfile`) with cached DuckDB queries.
 * `projects/transformation/spark/`: Lakehouse data transformation, dimensional enrichment, and Delta Lake curation.
   * `data/raw/`: Raw sample datasets (`customers.json`, `products.json`, `purchases.json`).
   * `data/curated/`: Output directory for generated Delta Lake tables (ignored by git).
@@ -96,7 +105,7 @@ This project is bootstrapped to work seamlessly with VS Code / Antigravity IDE w
   }
   ```
 * **`.vscode/launch.json`**: Debugging configurations mapped to current files, leveraging the local `.env` file.
-* **`.env` (Git Ignored)**: Sets the correct `JAVA_HOME` to **Java 17** (overriding the system default Java 24 to maintain PySpark 3.x compatibility).
+* **`.env` (Git Ignored)**: Sets the correct `JAVA_HOME` to **Java 17** (overriding system default Java 24 to maintain PySpark 3.x compatibility), cloud project credentials, and the `AIRFLOW_FERNET_KEY` encryption key for Airflow container orchestration.
 
 ---
 
@@ -106,6 +115,7 @@ This project is bootstrapped to work seamlessly with VS Code / Antigravity IDE w
 2. **STRICTLY LOCAL SCOPE:** Do not write or modify any VS Code/IDE configurations outside the `data-engineering` project directory.
 3. **PANTS COMPLIANCE:** Always follow the target-based workflow for Pants commands.
 4. **SPARK COMPATIBILITY:** Run PySpark tasks using Java 17 via the `JAVA_HOME` configuration found in `.env`.
+5. **DOCUMENTATION SYNCHRONIZATION:** Always synchronize both the root `README.md` (including badges and project tables), any relevant sub-project `README.md` files (such as `projects/realtime/ecommerce/README.md`), and `AGENTS.md` whenever architectural, configuration, dependency, or pipeline changes occur.
 
 ---
 
