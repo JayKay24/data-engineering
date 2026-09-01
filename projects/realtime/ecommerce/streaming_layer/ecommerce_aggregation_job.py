@@ -111,11 +111,17 @@ def run_pipeline(
             "session_funnels": aggregate_session_funnels(parsed, ts_f, gap_sec),
         }
 
-        output_dir = storage_cfg.get(
-            "output_base_dir", "projects/realtime/ecommerce/output_data"
+        output_dir = os.getenv(
+            "SPARK_OUTPUT_BASE_DIR",
+            storage_cfg.get(
+                "output_base_dir", "projects/realtime/ecommerce/output_data"
+            ),
         )
-        checkpoint_dir = storage_cfg.get(
-            "checkpoint_base_dir", "projects/realtime/ecommerce/checkpoints"
+        checkpoint_dir = os.getenv(
+            "SPARK_CHECKPOINT_BASE_DIR",
+            storage_cfg.get(
+                "checkpoint_base_dir", "projects/realtime/ecommerce/checkpoints"
+            ),
         )
 
         if is_streaming:

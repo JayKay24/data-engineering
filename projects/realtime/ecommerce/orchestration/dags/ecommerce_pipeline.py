@@ -6,14 +6,11 @@ from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
 
-CLICK_PREFIX = os.environ.get(
-    "CLICK_STREAM_OUTPUT_PREFIX", "/opt/project/output_data"
-)
-DBT_DIR = os.environ.get("DBT_PROJ_DIR", "/opt/project/batch_layer")
-
-
 def wait_for_stream_outputs(min_dirs: int = 3, timeout_min: int = 15) -> bool:
-    """Waits until at least `min_dirs` streaming directories contain parquet files."""
+    """Waits until at least `min_dirs` streaming directories contain valid parquet and delta commits."""
+    click_prefix = os.environ.get(
+        "CLICK_STREAM_OUTPUT_PREFIX", "/opt/project/output_data"
+    )
     start = time.time()
     targets = [
         "url_counts",
@@ -27,14 +24,15 @@ def wait_for_stream_outputs(min_dirs: int = 3, timeout_min: int = 15) -> bool:
     while True:
         ready = 0
         for t in targets:
-            path = os.path.join(CLICK_PREFIX, t, "*.parquet")
-            if glob.glob(path):
+            delta_log_path = os.path.join(click_prefix, t, "_delta_log", "*.json")
+            parquet_path = os.path.join(click_prefix, t, "*.parquet")
+            if glob.glob(delta_log_path) or glob.glob(parquet_path):
                 ready += 1
         if ready >= min_dirs:
             return True
         if time.time() - start > timeout_min * 60:
             raise TimeoutError(
-                f"Timed out waiting for streaming parquet files in {CLICK_PREFIX}"
+                f"Timed out waiting for streaming parquet files in {click_prefix}"
             )
         time.sleep(10)
 
@@ -62,17 +60,17 @@ with DAG(
 
     dbt_build_staging = BashOperator(
         task_id="dbt_build_staging",
-        bash_command=f"cd {DBT_DIR} && dbt build -s 'path:models/staging/**'",
+        bash_command="cd ${DBT_PROJ_DIR:-/opt/project/batch_layer} && dbt build -s 'path:models/staging/**'",
     )
 
     dbt_build_marts = BashOperator(
         task_id="dbt_build_marts",
-        bash_command=f"cd {DBT_DIR} && dbt build -s 'path:models/marts/**'",
+        bash_command="cd ${DBT_PROJ_DIR:-/opt/project/batch_layer} && dbt build -s 'path:models/marts/**'",
     )
 
     dbt_test_all = BashOperator(
         task_id="dbt_test_all",
-        bash_command=f"cd {DBT_DIR} && dbt test",
+        bash_command="cd ${DBT_PROJ_DIR:-/opt/project/batch_layer} && dbt test",
     )
 
     wait_for_stream >> dbt_build_staging >> dbt_build_marts >> dbt_test_all
