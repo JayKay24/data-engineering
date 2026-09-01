@@ -12,6 +12,8 @@ def write_streaming_sinks(
     checkpoint_base_dir: str,
 ) -> list[StreamingQuery]:
     """Attaches streaming sinks (console or Delta Lake) to aggregated DataFrames."""
+    os.makedirs(output_base_dir, exist_ok=True)
+    os.makedirs(checkpoint_base_dir, exist_ok=True)
     active_queries = []
 
     for name, df in streams_dict.items():
