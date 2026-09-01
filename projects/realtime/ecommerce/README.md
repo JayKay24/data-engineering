@@ -44,15 +44,16 @@ flowchart TD
 ### 2. Batch Layer (`batch_layer/`)
 *   [dbt_project.yml](projects/realtime/ecommerce/batch_layer/dbt_project.yml) & [profiles.yml](projects/realtime/ecommerce/batch_layer/profiles.yml): dbt configuration targeting DuckDB (`ecommerce.duckdb`).
 *   [Makefile](projects/realtime/ecommerce/batch_layer/Makefile): Shortcuts for dbt execution (`make dbt-build`, `make query`).
-*   [models/staging/](projects/realtime/ecommerce/batch_layer/models/staging/): Staging views over streaming Delta/Parquet outputs.
+*   [macros/](projects/realtime/ecommerce/batch_layer/macros/): Centralized SQL macros (`get_stream_path.sql` for dynamic parquet source resolution).
+*   [models/staging/](projects/realtime/ecommerce/batch_layer/models/staging/): Staging views over streaming Delta/Parquet outputs with schema integrity tests.
 *   [models/marts/](projects/realtime/ecommerce/batch_layer/models/marts/): Analytical models (`cumulative_users`, `daily_category_sales`, `monthly_category_sales`, `daily_top_urls`, `daily_top_urls_per_user`, `daily_url_conversion`, `new_vs_returning_users`).
 *   [models/monitors/](projects/realtime/ecommerce/batch_layer/models/monitors/): Freshness and latency monitor (`last_ingest.sql`).
 
 ### 3. Orchestration & Serving Layer (`orchestration/`)
 *   [docker-compose.yml](projects/realtime/ecommerce/orchestration/docker-compose.yml): Airflow (LocalExecutor), PostgreSQL backend, and Streamlit containers.
 *   [Makefile](projects/realtime/ecommerce/orchestration/Makefile): Cluster lifecycle commands (`make up`, `make down`, `make logs`).
-*   [dags/ecommerce_pipeline.py](projects/realtime/ecommerce/orchestration/dags/ecommerce_pipeline.py): DAG polling stream arrival and running dbt transformations and data tests.
-*   [viz/app.py](projects/realtime/ecommerce/orchestration/viz/app.py): Interactive Streamlit dashboard visualizer (`:8501`).
+*   [dags/ecommerce_pipeline.py](projects/realtime/ecommerce/orchestration/dags/ecommerce_pipeline.py): Airflow DAG using a custom `DeltaStreamSensor` with reschedule mode to poll stream arrival, orchestrating `dbt build` and `dbt test`.
+*   [viz/app.py](projects/realtime/ecommerce/orchestration/viz/app.py): Interactive Streamlit dashboard visualizer (`:8501`) with cached DuckDB queries.
 
 ---
 

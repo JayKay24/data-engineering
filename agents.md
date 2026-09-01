@@ -67,11 +67,12 @@ This repository is a **Python Data Engineering Monorepo** managed by the **Pants
     * `BUILD`: Pants build definition with `python_sources`, `resources`, and `pex_binary` targets.
   * `batch_layer/`: Modular SQL transformations, dimensional marts, and freshness monitors with dbt and DuckDB.
     * `Dockerfile`, `docker-compose.yml`, `Makefile`: Containerized runner (`make dbt-build`, `make query`).
-    * `models/`: Staging views over streaming Delta tables, analytical marts (`cumulative_users`, `daily_category_sales`, `daily_url_conversion`), and monitors (`last_ingest`).
+    * `macros/`: Centralized `get_stream_path` SQL macro for dynamic parquet pathing.
+    * `models/`: Staging views with column integrity tests, analytical marts (`cumulative_users`, `daily_category_sales`, `daily_url_conversion`), and freshness monitors (`last_ingest`).
   * `orchestration/`: Containerized workflow orchestration and executive business intelligence.
-    * `docker-compose.yml` & `Makefile`: Containerized Airflow (LocalExecutor + Postgres) and Streamlit dashboard (`make up`, `make down`).
-    * `dags/ecommerce_pipeline.py`: Airflow DAG polling stream outputs and running dbt build/test pipelines.
-    * `viz/`: Interactive real-time Streamlit dashboard (`app.py`, `viz.Dockerfile`).
+    * `docker-compose.yml` & `Makefile`: Containerized Airflow (LocalExecutor + Postgres 16) and Streamlit dashboard (`make up`, `make down`, `make status`).
+    * `dags/ecommerce_pipeline.py`: Airflow DAG using a custom `DeltaStreamSensor` to monitor streaming Delta commits and trigger dbt pipelines.
+    * `viz/`: Interactive real-time Streamlit dashboard (`app.py`, `viz.Dockerfile`) with cached DuckDB queries.
 * `projects/transformation/spark/`: Lakehouse data transformation, dimensional enrichment, and Delta Lake curation.
   * `data/raw/`: Raw sample datasets (`customers.json`, `products.json`, `purchases.json`).
   * `data/curated/`: Output directory for generated Delta Lake tables (ignored by git).
