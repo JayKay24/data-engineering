@@ -1,6 +1,6 @@
 kafka_config:
   bootstrap_servers: "localhost:9092"
-  topic: "clickstream_events"
+  topic: "ecommerce_events"
   starting_offsets: "earliest"
 
 schema_registry:
@@ -8,13 +8,17 @@ schema_registry:
 
 windowing:
   timestamp_field: "event_time"
+  user_field: "user_id"
+  url_field: "url"
+  event_field: "event_type"
   window_duration: "10 seconds"
   slide_duration: "5 seconds"
   watermark_delay: "10 seconds"
+  top_n: 5
+  session_gap_seconds: 900
 
 storage:
   output_mode: "append"
   trigger_processing_time: "5 seconds"
-  url_aggregates_path: "projects/realtime/clickstream/output_data/url_counts"
-  user_aggregates_path: "projects/realtime/clickstream/output_data/user_counts"
-  checkpoint_base_dir: "projects/realtime/clickstream/checkpoints"
+  output_base_dir: "projects/realtime/ecommerce/output_data"
+  checkpoint_base_dir: "projects/realtime/ecommerce/checkpoints"

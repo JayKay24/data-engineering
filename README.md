@@ -12,6 +12,8 @@
   <img src="https://img.shields.io/badge/Great_Expectations-1.2-FF671F?style=for-the-badge&logo=greatexpectations&logoColor=white" alt="Great Expectations" />
   <img src="https://img.shields.io/badge/dbt-1.8-FF694B?style=for-the-badge&logo=dbt&logoColor=white" alt="dbt" />
   <img src="https://img.shields.io/badge/DuckDB-1.1-FFF000?style=for-the-badge&logo=duckdb&logoColor=black" alt="DuckDB" />
+  <img src="https://img.shields.io/badge/Apache_Airflow-2.9-017CEE?style=for-the-badge&logo=apacheairflow&logoColor=white" alt="Apache Airflow" />
+  <img src="https://img.shields.io/badge/Streamlit-1.38-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white" alt="Streamlit" />
   <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker" />
   <img src="https://img.shields.io/badge/Ruff-D7FF64?style=for-the-badge&logo=ruff&logoColor=black" alt="Ruff" />
 </p>
@@ -52,7 +54,7 @@ data-engineering/
 │   ├── requirements.txt       # Lists project requirements (pandas, PySpark, etc.)
 │   └── user_reqs.lock         # Pants generated dependency lockfile
 ├── projects/                  # Directory containing all sub-projects
-│   ├── common/                # Shared utilities (structured logging, helpers)
+│   ├── common/                # Shared utilities (structured logging, Kafka Avro helpers)
 │   ├── storage/               # Strategic relational & cloud data storage
 │   │   ├── postgres/          # Dockerized PostgreSQL 16 transactional storage & CRUD
 │   │   └── cloud/             # Google Cloud Storage & BigQuery analytical queries
@@ -63,7 +65,7 @@ data-engineering/
 │   │   ├── spark/             # PySpark and Delta Lake batch curation
 │   │   └── dbt/               # dbt and DuckDB SQL transformation pipeline
 │   ├── realtime/              # Real-time event stream aggregation and analytics
-│   │   └── clickstream/       # Clickstream sliding window metrics & Delta Lake sinks
+│   │   └── ecommerce/         # E-commerce Lambda Architecture: Streaming (PySpark/Delta) + Batch (dbt/DuckDB) + Orchestration (Airflow/Streamlit)
 │   ├── ingestion/             # Real-time event streaming and ingestion pipeline
 │   └── essentials/            # Core PySpark processing utilities
 ├── scripts/
@@ -78,8 +80,8 @@ data-engineering/
 
 Each project under the `projects/` directory represents a distinct data platform capability:
 
-*   [projects/common/](projects/common/) — Shared monorepo utilities including unified structured logging.
-*   [projects/realtime/clickstream/](projects/realtime/clickstream/) — Real-time event streaming, event-time sliding windows, watermarks, and Delta Lake sinks (see [projects/realtime/clickstream/README.md](projects/realtime/clickstream/README.md)).
+*   [projects/common/](projects/common/) — Shared monorepo utilities including unified structured logging and shared Kafka/Avro/ABRiS tools.
+*   [projects/realtime/ecommerce/](projects/realtime/ecommerce/) — E-commerce Lambda architecture with real-time PySpark streaming into Delta Lake, dbt DuckDB analytical batch marts, and containerized Airflow + Streamlit orchestration (see [projects/realtime/ecommerce/README.md](projects/realtime/ecommerce/README.md)).
 *   [projects/quality/great_expectations/](projects/quality/great_expectations/) — Automated tabular data quality validation using Great Expectations Fluent API (see [projects/quality/great_expectations/README.md](projects/quality/great_expectations/README.md)).
 *   [projects/quality/pydeequ/](projects/quality/pydeequ/) — Distributed data quality verification and metric auditing with Amazon Deequ and PySpark (see [projects/quality/pydeequ/README.md](projects/quality/pydeequ/README.md)).
 

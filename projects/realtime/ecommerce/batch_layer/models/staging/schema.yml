@@ -1,0 +1,19 @@
+version: 2
+
+models:
+  - name: cart_metrics
+    description: "Staging view over streaming cart metrics (add-to-cart rate & cart abandonment)"
+    columns:
+      - name: url
+        tests:
+          - not_null
+  - name: category_sales
+    description: "Staging view over streaming category sales and units"
+  - name: session_funnels
+    description: "Staging view over streaming 15-min session funnels"
+  - name: top_urls_per_user
+    description: "Staging view over streaming top visited URLs per user"
+  - name: url_conversion
+    description: "Staging view over streaming URL conversion rates"
+  - name: url_counts
+    description: "Staging view over streaming URL and event type counts"

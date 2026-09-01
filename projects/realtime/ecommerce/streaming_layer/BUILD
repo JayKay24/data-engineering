@@ -9,12 +9,12 @@ resources(
 
 pex_binary(
     name="producer",
-    entry_point="clickstream_producer.py",
+    entry_point="ecommerce_producer.py",
     dependencies=[":data_files", "projects/common:lib"],
 )
 
 pex_binary(
     name="stream_job",
-    entry_point="clickstream_aggregation_job.py",
+    entry_point="ecommerce_aggregation_job.py",
     dependencies=[":data_files", "projects/common:lib"],
 )

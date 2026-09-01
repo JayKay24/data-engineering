@@ -15,14 +15,17 @@ from projects.common.kafka_avro import (
 )
 from projects.common.logger import get_logger
 
-logger = get_logger("ClickstreamAvroProducer")
+logger = get_logger("EcommerceAvroProducer")
 
 
-class ClickstreamEvent(TypedDict):
+class EcommerceEvent(TypedDict):
     user_id: str
     url: str
     event_type: str
     event_time: str
+    product_id: str | None
+    category: str | None
+    price: float | None
     ip_address: str | None
     user_agent: str | None
 
@@ -30,7 +33,7 @@ class ClickstreamEvent(TypedDict):
 def produce_events(
     config_path: str, schema_path: str, input_path: str, delay_seconds: float = 0.5
 ) -> None:
-    """Streams clickstream events from JSON dataset to Kafka with Avro serialization."""
+    """Streams e-commerce events from JSON dataset to Kafka with Avro serialization."""
     with open(config_path, "r", encoding="utf-8") as f:
         config = yaml.safe_load(f)
 
@@ -41,7 +44,7 @@ def produce_events(
     bootstrap = os.getenv(
         "KAFKA_BOOTSTRAP_SERVERS", kafka_cfg.get("bootstrap_servers", "localhost:9092")
     )
-    topic = os.getenv("KAFKA_TOPIC", kafka_cfg.get("topic", "clickstream_events"))
+    topic = os.getenv("KAFKA_TOPIC", kafka_cfg.get("topic", "ecommerce_events"))
     sr_url = os.getenv(
         "SCHEMA_REGISTRY_URL", sr_cfg.get("url", "http://localhost:8081")
     )
@@ -50,13 +53,13 @@ def produce_events(
     producer, serializer = create_avro_producer(bootstrap, sr_url, schema_str)
     ctx = SerializationContext(topic, MessageField.VALUE)
 
-    logger.info("Reading clickstream events from: %s", input_path)
+    logger.info("Reading e-commerce events from: %s", input_path)
     count = 0
     with open(input_path, "r", encoding="utf-8") as f:
         for line in f:
             if not line.strip():
                 continue
-            event_data: ClickstreamEvent = json.loads(line.strip())
+            event_data: EcommerceEvent = json.loads(line.strip())
             serialized = serializer(event_data, ctx)
             key = str(event_data.get("user_id", "unknown")).encode("utf-8")
 
@@ -72,21 +75,22 @@ def produce_events(
                 time.sleep(delay_seconds)
 
     producer.flush()
-    logger.info("Successfully produced %d events to '%s'.", count, topic)
+    logger.info("Successfully produced %d e-commerce events to '%s'.", count, topic)
 
 
 if __name__ == "__main__":
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    parser = argparse.ArgumentParser(description="Produce Avro clickstream events.")
-    parser.add_argument(
-        "--config", default=os.path.join(script_dir, "config/clickstream_config.yml")
+    parser = argparse.ArgumentParser(
+        description="Produce Avro e-commerce events to Kafka."
     )
     parser.add_argument(
-        "--schema", default=os.path.join(script_dir, "schemas/clickstream_event.avsc")
+        "--config", default=os.path.join(script_dir, "config/ecommerce_config.yml")
     )
     parser.add_argument(
-        "--input",
-        default=os.path.join(script_dir, "input_data/clickstream_events.json"),
+        "--schema", default=os.path.join(script_dir, "schemas/ecommerce_event.avsc")
+    )
+    parser.add_argument(
+        "--input", default=os.path.join(script_dir, "input_data/ecommerce_events.json")
     )
     parser.add_argument("--delay", type=float, default=0.5)
     args = parser.parse_args()

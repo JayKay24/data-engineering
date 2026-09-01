@@ -1,0 +1,66 @@
+version: "3.9"
+
+x-airflow-env: &airflow_env
+  AIRFLOW__CORE__EXECUTOR: LocalExecutor
+  AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+  AIRFLOW__WEBSERVER__RBAC: "true"
+  AIRFLOW__SCHEDULER__DAG_DIR_LIST_INTERVAL: "20"
+  AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "false"
+  AIRFLOW__CORE__FERNET_KEY: "8UVw1t3vQeY_5Gm4oR5w-EXAMPLE-CHANGE-ME-123456"
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow -d airflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  airflow:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      <<: *airflow_env
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
+      CLICK_STREAM_OUTPUT_PREFIX: /opt/project/output_data
+      DBT_PROJ_DIR: /opt/project/batch_layer
+      DUCKDB_PATH: /opt/project/batch_layer/data/ecommerce.duckdb
+    command: >
+      bash -lc "
+        airflow db upgrade &&
+        airflow users create --role Admin --username admin --password admin --firstname A --lastname D --email a@b.c || true &&
+        airflow webserver & airflow scheduler
+      "
+    ports:
+      - "8080:8080"
+    volumes:
+      - ..:/opt/project
+      - ./dags:/opt/airflow/dags
+    restart: unless-stopped
+
+  streamlit:
+    build:
+      context: ./viz
+      dockerfile: Dockerfile
+    environment:
+      DUCKDB_PATH: /opt/project/batch_layer/data/ecommerce.duckdb
+      CLICK_STREAM_OUTPUT_PREFIX: /opt/project/output_data
+    volumes:
+      - ..:/opt/project
+    ports:
+      - "8501:8501"
+    depends_on:
+      - airflow
+    restart: unless-stopped
+
+volumes:
+  pgdata:

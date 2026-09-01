@@ -55,15 +55,23 @@ This repository is a **Python Data Engineering Monorepo** managed by the **Pants
   * `json_producer.py`: Compact Kafka Avro message producer script (`projects/ingestion:producer`).
   * `kafka_json_to_file_job.py`: PySpark ingestion script using ABRiS and Confluent Schema Registry (`projects/ingestion:ingest_job`).
   * `BUILD`: Pants build definition with `python_sources`, `resources`, and `pex_binary` targets.
-* `projects/realtime/clickstream/`: Real-time sliding window aggregation pipeline with Avro, Schema Registry, and Delta Lake.
-  * `config/clickstream_config.yml`: Configuration file for Kafka, watermarking, windows, and sinks.
-  * `schemas/clickstream_event.avsc`: Avro schema contract for user clickstream events.
-  * `input_data/clickstream_events.json`: Sample raw clickstream event stream.
-  * `aggregations.py`: Spark sliding window and watermarking aggregations for URL and user activity.
-  * `sinks.py`: Streaming and batch sink adapters for Delta Lake and console outputs.
-  * `clickstream_producer.py`: Lightweight Kafka Avro clickstream producer script (`projects/realtime/clickstream:producer`).
-  * `clickstream_aggregation_job.py`: Orchestrator for PySpark Structured Streaming into Delta Lake (`projects/realtime/clickstream:stream_job`).
-  * `BUILD`: Pants build definition with `python_sources`, `resources`, and `pex_binary` targets.
+* `projects/realtime/ecommerce/`: E-Commerce Lambda Architecture platform (Streaming + Batch + Orchestration).
+  * `streaming_layer/`: PySpark Structured Streaming with Avro, Schema Registry, and Delta Lake.
+    * `config/ecommerce_config.yml`: Configuration for Kafka, watermarking, sliding windows, and Delta Lake sinks.
+    * `schemas/ecommerce_event.avsc`: Avro schema contract for e-commerce user activity and purchase events.
+    * `input_data/ecommerce_events.json`: Sample raw e-commerce event stream dataset.
+    * `aggregations.py`: Spark sliding window, session funnel, and conversion KPI aggregations.
+    * `sinks.py`: Multi-table streaming and batch sink adapters for Delta Lake and console outputs.
+    * `ecommerce_producer.py`: Kafka Avro message producer script (`projects/realtime/ecommerce/streaming_layer:producer`).
+    * `ecommerce_aggregation_job.py`: PySpark Structured Streaming orchestrator into Delta Lake (`projects/realtime/ecommerce/streaming_layer:stream_job`).
+    * `BUILD`: Pants build definition with `python_sources`, `resources`, and `pex_binary` targets.
+  * `batch_layer/`: Modular SQL transformations, dimensional marts, and freshness monitors with dbt and DuckDB.
+    * `Dockerfile`, `docker-compose.yml`, `Makefile`: Containerized runner (`make dbt-build`, `make query`).
+    * `models/`: Staging views over streaming Delta tables, analytical marts (`cumulative_users`, `daily_category_sales`, `daily_url_conversion`), and monitors (`last_ingest`).
+  * `orchestration/`: Containerized workflow orchestration and executive business intelligence.
+    * `docker-compose.yml` & `Makefile`: Containerized Airflow (LocalExecutor + Postgres) and Streamlit dashboard (`make up`, `make down`).
+    * `dags/ecommerce_pipeline.py`: Airflow DAG polling stream outputs and running dbt build/test pipelines.
+    * `viz/`: Interactive real-time Streamlit dashboard (`app.py`, `viz.Dockerfile`).
 * `projects/transformation/spark/`: Lakehouse data transformation, dimensional enrichment, and Delta Lake curation.
   * `data/raw/`: Raw sample datasets (`customers.json`, `products.json`, `purchases.json`).
   * `data/curated/`: Output directory for generated Delta Lake tables (ignored by git).

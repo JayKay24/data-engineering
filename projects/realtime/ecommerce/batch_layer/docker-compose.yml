@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  dbt:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - .:/usr/app
+      - ../output_data:/opt/project/output_data:ro
+    environment:
+      - DUCKDB_PATH=/usr/app/data/ecommerce.duckdb
+      - CLICK_STREAM_OUTPUT_PREFIX=/opt/project/output_data
+    working_dir: /usr/app
+    entrypoint: ["dbt"]
+    command: ["build"]
