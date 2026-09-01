@@ -134,10 +134,11 @@ def run_pipeline(
                 checkpoint_dir,
             )
             logger.info(
-                "Active streaming queries: %d. Awaiting termination...", len(queries)
+                "Active streaming queries: %d (%s). Monitoring with fail-fast termination...",
+                len(queries),
+                ", ".join(streams.keys()),
             )
-            for q in queries:
-                q.awaitTermination()
+            spark.streams.awaitAnyTermination()
         else:
             write_batch_sinks(streams, sink, output_dir)
             logger.info("Batch execution completed successfully.")
