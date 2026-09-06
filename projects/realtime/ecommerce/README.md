@@ -9,16 +9,19 @@ flowchart TD
         SS -->|Low-Latency Writes| DL[(Delta Lake Storage Sinks)]
     end
 
-    subgraph Batch Layer [Batch Layer - dbt & DuckDB]
-        DL -->|Parquet Views| STG[dbt Staging Models]
-        STG -->|Historical Transforms| MARTS[dbt Analytical Marts & Monitors]
+    subgraph Serving & Orchestration [Serving & Orchestration Layer]
+        AF[Apache Airflow DAG: ecommerce_batch_refresh] --> SENSOR[DeltaStreamSensor: wait_for_stream_outputs]
+        DL -.->|Polls for Delta commits| SENSOR
+        SENSOR -->|Triggers on data readiness| DBT[dbt Execution Pipeline]
+        DBT -->|Build Staging & Marts| DUCK[(DuckDB Gold Warehouse)]
+        DUCK -->|Queries| VIZ[Streamlit Executive Dashboard :8501]
     end
 
-    subgraph Serving & Orchestration [Serving & Orchestration Layer]
-        AF[Apache Airflow DAG] -->|1. Polling Sensor| WAIT[wait_for_stream_outputs]
-        WAIT -->|2. Orchestrates| DBT_RUN[dbt build & test]
-        DBT_RUN -->|3. Populates| DUCK[(DuckDB Gold Warehouse)]
-        DUCK -->|4. Visualizes| VIZ[Streamlit Executive Dashboard]
+    subgraph Batch Layer [Batch Layer - dbt & DuckDB]
+        DBT -.->|Executes| STG[Staging Views]
+        DBT -.->|Executes| MARTS[Analytical Marts & Monitors]
+        DL -.->|Source Parquet Data| STG
+        STG --> MARTS
     end
 ```
 
@@ -26,34 +29,35 @@ flowchart TD
 
 ## 📁 Project Architecture & Components
 
-*   [projects/common/docker/docker-compose.yml](projects/common/docker/docker-compose.yml): Shared monorepo Zookeeper, Kafka, and Confluent Schema Registry (`:8081`) containers.
+*   [projects/common/docker/docker-compose.yml](../../common/docker/docker-compose.yml): Shared monorepo Zookeeper, Kafka, and Confluent Schema Registry (`:8081`) containers.
 
 ### 1. Speed Layer (`streaming_layer/`)
-*   [config/ecommerce_config.yml](projects/realtime/ecommerce/streaming_layer/config/ecommerce_config.yml): Configuration defining Kafka topics, Schema Registry URL, sliding windows (`10s` duration, `5s` slide), `10s` watermark, and Delta Lake sinks.
-*   [schemas/ecommerce_event.avsc](projects/realtime/ecommerce/streaming_layer/schemas/ecommerce_event.avsc): Avro schema contract supporting `user_id`, `url`, `event_type`, `product_id`, `category`, `price`, and device headers.
-*   [aggregations.py](projects/realtime/ecommerce/streaming_layer/aggregations.py): Real-time metrics computation:
+*   [config/ecommerce_config.yml](streaming_layer/config/ecommerce_config.yml): Configuration defining Kafka topics, Schema Registry URL, sliding windows (`10s` duration, `5s` slide), `10s` watermark, and Delta Lake sinks.
+*   [schemas/ecommerce_event.avsc](streaming_layer/schemas/ecommerce_event.avsc): Avro schema contract supporting `user_id`, `url`, `event_type`, `product_id`, `category`, `price`, and device headers.
+*   [aggregations.py](streaming_layer/aggregations.py): Real-time metrics computation:
+    - **URL Click Counts & User Engagement:** Event-time windowed activity tracking.
     - **URL Conversion Rate:** `purchases / views` per URL.
     - **Category Revenue & Units:** Sales metrics grouped by category.
     - **Cart Metrics:** `add_to_cart_rate` and `cart_abandonment`.
     - **Session Funnels:** 15-min session windowing tracking `view -> add_to_cart -> purchase`.
     - **Top-N URLs per User:** Ranked visit counts per user.
-*   [sinks.py](projects/realtime/ecommerce/streaming_layer/sinks.py): Modular streaming and batch writer adapters for Delta Lake and Console outputs.
-*   [ecommerce_producer.py](projects/realtime/ecommerce/streaming_layer/ecommerce_producer.py): Lightweight Avro event producer.
-*   [ecommerce_aggregation_job.py](projects/realtime/ecommerce/streaming_layer/ecommerce_aggregation_job.py): PySpark streaming orchestrator.
+*   [sinks.py](streaming_layer/sinks.py): Modular streaming and batch writer adapters for Delta Lake and Console outputs.
+*   [ecommerce_producer.py](streaming_layer/ecommerce_producer.py): Lightweight Avro event producer.
+*   [ecommerce_aggregation_job.py](streaming_layer/ecommerce_aggregation_job.py): PySpark streaming orchestrator.
 
 ### 2. Batch Layer (`batch_layer/`)
-*   [dbt_project.yml](projects/realtime/ecommerce/batch_layer/dbt_project.yml) & [profiles.yml](projects/realtime/ecommerce/batch_layer/profiles.yml): dbt configuration targeting DuckDB (`ecommerce.duckdb`).
-*   [Makefile](projects/realtime/ecommerce/batch_layer/Makefile): Shortcuts for dbt execution (`make dbt-build`, `make query`).
-*   [macros/](projects/realtime/ecommerce/batch_layer/macros/): Centralized SQL macros (`get_stream_path.sql` for dynamic parquet source resolution).
-*   [models/staging/](projects/realtime/ecommerce/batch_layer/models/staging/): Staging views over streaming Delta/Parquet outputs with schema integrity tests.
-*   [models/marts/](projects/realtime/ecommerce/batch_layer/models/marts/): Analytical models (`cumulative_users`, `daily_category_sales`, `monthly_category_sales`, `daily_top_urls`, `daily_top_urls_per_user`, `daily_url_conversion`, `new_vs_returning_users`).
-*   [models/monitors/](projects/realtime/ecommerce/batch_layer/models/monitors/): Freshness and latency monitor (`last_ingest.sql`).
+*   [dbt_project.yml](batch_layer/dbt_project.yml) & [profiles.yml](batch_layer/profiles.yml): dbt configuration targeting DuckDB (`ecommerce.duckdb`).
+*   [Makefile](batch_layer/Makefile): Shortcuts for dbt execution (`make dbt-build`, `make query`).
+*   [macros/](batch_layer/macros/): Centralized SQL macros (`get_stream_path.sql` for dynamic parquet source resolution).
+*   [models/staging/](batch_layer/models/staging/): Staging views over streaming Delta/Parquet outputs with schema integrity tests.
+*   [models/marts/](batch_layer/models/marts/): Analytical models (`cumulative_users`, `daily_category_sales`, `monthly_category_sales`, `daily_top_urls`, `daily_top_urls_per_user`, `daily_url_conversion`, `new_vs_returning_users`).
+*   [models/monitors/](batch_layer/models/monitors/): Freshness and latency monitor (`last_ingest.sql`).
 
 ### 3. Orchestration & Serving Layer (`orchestration/`)
-*   [docker-compose.yml](projects/realtime/ecommerce/orchestration/docker-compose.yml): Airflow (LocalExecutor), PostgreSQL backend, and Streamlit containers.
-*   [Makefile](projects/realtime/ecommerce/orchestration/Makefile): Cluster lifecycle commands (`make up`, `make down`, `make logs`).
-*   [dags/ecommerce_pipeline.py](projects/realtime/ecommerce/orchestration/dags/ecommerce_pipeline.py): Airflow DAG using a custom `DeltaStreamSensor` with reschedule mode to poll stream arrival, orchestrating `dbt build` and `dbt test`.
-*   [viz/app.py](projects/realtime/ecommerce/orchestration/viz/app.py): Interactive Streamlit dashboard visualizer (`:8501`) with cached DuckDB queries.
+*   [docker-compose.yml](orchestration/docker-compose.yml): Airflow (LocalExecutor), PostgreSQL backend, and Streamlit containers.
+*   [Makefile](orchestration/Makefile): Cluster lifecycle commands (`make up`, `make down`, `make logs`).
+*   [dags/ecommerce_pipeline.py](orchestration/dags/ecommerce_pipeline.py): Airflow DAG using a custom `DeltaStreamSensor` (`wait_for_stream_outputs`) with reschedule mode to poll stream arrival, orchestrating `dbt build` and `dbt test`.
+*   [viz/app.py](orchestration/viz/app.py): Interactive Streamlit dashboard visualizer (`:8501`) with cached DuckDB queries.
 
 ---
 
