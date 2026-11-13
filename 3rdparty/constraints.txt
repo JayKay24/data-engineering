@@ -1,0 +1,3 @@
+# Transitive dependency constraints for macOS dyld compatibility
+# (scipy 1.15.x macOS wheels fail __DATA/__thread_bss check on macOS arm64)
+scipy<1.15.0
