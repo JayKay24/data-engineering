@@ -4,6 +4,7 @@ pants_version = "2.22.0"
 # Enable python backend and Ruff linter/formatter backend
 backend_packages = [
   "pants.backend.python",
+  "pants.backend.docker",
   "pants.backend.experimental.python.lint.ruff.check",
   "pants.backend.experimental.python.lint.ruff.format",
 ]
@@ -18,6 +19,9 @@ default_resolve = "shared-lock"
 
 [python.resolves]
 shared-lock = "3rdparty/user_reqs.lock"
+
+[python.resolves_to_constraints_file]
+shared-lock = "3rdparty/constraints.txt"
 
 [python-bootstrap]
 search_path = [
