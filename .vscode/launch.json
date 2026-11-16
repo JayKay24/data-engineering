@@ -2,10 +2,63 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Python: Debug Current File (Essentials)",
+      "name": "Python: Debug Current File",
       "type": "debugpy",
       "request": "launch",
       "program": "${file}",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env",
+      "justMyCode": true
+    },
+    {
+      "name": "E-Commerce: Avro Producer",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/projects/ecommerce/streaming_layer/ecommerce_producer.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env",
+      "justMyCode": true
+    },
+    {
+      "name": "E-Commerce: Spark Aggregation Job (Batch)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/projects/ecommerce/streaming_layer/ecommerce_aggregation_job.py",
+      "args": ["--batch", "--sink", "delta"],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env",
+      "justMyCode": true
+    },
+    {
+      "name": "E-Commerce: OLTP Dimension Sync",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/projects/ecommerce/oltp_sync/sync_dimensions.py",
+      "args": ["--seed-from-defaults-on-offline"],
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env",
+      "justMyCode": true
+    },
+    {
+      "name": "E-Commerce: Great Expectations Validation",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/projects/ecommerce/quality/validate_ecommerce.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "envFile": "${workspaceFolder}/.env",
+      "justMyCode": true
+    },
+    {
+      "name": "E-Commerce: GCP Cloud Sync (Dry Run)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/projects/ecommerce/cloud_sync/export_to_gcp.py",
+      "args": ["--dry-run"],
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
       "envFile": "${workspaceFolder}/.env",
