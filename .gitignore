@@ -44,17 +44,12 @@ spark-warehouse/
 **/target/
 **/dbt_packages/
 dbt_packages/
-projects/transformation/dbt/target/
-projects/transformation/dbt/dbt_packages/
-projects/transformation/dbt/logs/
-projects/transformation/dbt/.user.yml
-projects/realtime/ecommerce/batch_layer/target/
-projects/realtime/ecommerce/batch_layer/dbt_packages/
-projects/realtime/ecommerce/batch_layer/logs/
-projects/realtime/ecommerce/batch_layer/.user.yml
+projects/ecommerce/batch_layer/target/
+projects/ecommerce/batch_layer/dbt_packages/
+projects/ecommerce/batch_layer/logs/
+projects/ecommerce/batch_layer/.user.yml
 .user.yml
 logs/
 
 # Data Quality output files
-projects/quality/output/
 **/great_expectations/uncommitted/
