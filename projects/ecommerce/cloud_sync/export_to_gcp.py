@@ -1,3 +1,10 @@
+"""Google Cloud Platform lakehouse and warehouse sync utility.
+
+Uploads curated local Parquet artifacts to Google Cloud Storage (GCS) and loads
+DuckDB Gold analytical marts into BigQuery, with dry-run support when GCP sync
+is disabled.
+"""
+
 import argparse
 import glob
 import os
@@ -26,8 +33,16 @@ GOLD_MART_TABLES = [
 
 
 def _discover_parquet_files(output_base_dir: str) -> list[str]:
-    """Discovers local Parquet artifacts across streaming and dimension output directories."""
+    """Discovers local Parquet artifacts across streaming and dimension output dirs.
+
+    Args:
+        output_base_dir: Root directory to recursively scan for ``*.parquet`` files.
+
+    Returns:
+        Sorted list of matching Parquet file paths.
+    """
     pattern = os.path.join(output_base_dir, "**", "*.parquet")
+    # Sort paths for deterministic upload ordering and reproducible logs.
     return sorted(glob.glob(pattern, recursive=True))
 
 
@@ -36,7 +51,17 @@ def upload_parquet_to_gcs(
     bucket_name: str,
     prefix: str = "ecommerce/curated",
 ) -> int:
-    """Uploads local Parquet files to Google Cloud Storage."""
+    """Uploads local Parquet files to Google Cloud Storage.
+
+    Args:
+        output_base_dir: Local root directory containing Parquet output folders.
+        bucket_name: Target GCS bucket name.
+        prefix: Destination object key prefix inside the bucket. Defaults to
+            ``"ecommerce/curated"``.
+
+    Returns:
+        Number of Parquet files uploaded to GCS.
+    """
     parquet_files = _discover_parquet_files(output_base_dir)
     if not parquet_files:
         logger.warning("No Parquet files found under %s to upload.", output_base_dir)
@@ -47,6 +72,7 @@ def upload_parquet_to_gcs(
     uploaded = 0
 
     for local_path in parquet_files:
+        # Preserve the local relative directory structure (table/partition folders) in GCS.
         rel_path = os.path.relpath(local_path, output_base_dir)
         blob_name = f"{prefix}/{rel_path}"
         blob = bucket.blob(blob_name)
@@ -64,7 +90,16 @@ def sync_duckdb_marts_to_bigquery(
     project_id: str,
     dataset_id: str,
 ) -> int:
-    """Loads DuckDB Gold analytical marts into BigQuery tables and runs a verification query."""
+    """Loads DuckDB Gold analytical marts into BigQuery and runs a sanity query.
+
+    Args:
+        duckdb_path: Path to the local DuckDB warehouse file.
+        project_id: Target GCP project ID owning the BigQuery dataset.
+        dataset_id: Target BigQuery dataset name (created if missing).
+
+    Returns:
+        Number of Gold mart tables loaded into BigQuery.
+    """
     if not os.path.exists(duckdb_path):
         logger.warning(
             "DuckDB file not found at %s; skipping BigQuery sync.", duckdb_path
@@ -73,10 +108,12 @@ def sync_duckdb_marts_to_bigquery(
 
     bq_client = get_bigquery_client(project_id)
     dataset_ref = bigquery.DatasetReference(project_id, dataset_id)
+    # Ensure the destination dataset exists before loading tables.
     bq_client.create_dataset(bigquery.Dataset(dataset_ref), exists_ok=True)
 
     loaded_tables = 0
     with connect_duckdb_readonly(duckdb_path) as conn:
+        # Inspect main-schema tables so unbuilt marts are skipped gracefully.
         existing_tables = {
             row[0]
             for row in conn.execute(
@@ -90,16 +127,19 @@ def sync_duckdb_marts_to_bigquery(
             if df.empty:
                 continue
             table_id = f"{project_id}.{dataset_id}.{table}"
+            # Use WRITE_TRUNCATE for idempotent full-refresh snapshots of each Gold mart.
             job_config = bigquery.LoadJobConfig(
                 write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE
             )
             load_job = bq_client.load_table_from_dataframe(
                 df, table_id, job_config=job_config
             )
+            # Block until the load job completes so downstream verification sees fresh data.
             load_job.result()
             loaded_tables += 1
             logger.info("Loaded %d rows into BigQuery table %s", len(df), table_id)
 
+    # Run a lightweight post-load verification query when the revenue mart was synced.
     if loaded_tables > 0 and "daily_category_sales" in existing_tables:
         verify_sql = f"""
             SELECT category, SUM(daily_revenue) AS total_revenue
@@ -117,10 +157,17 @@ def sync_duckdb_marts_to_bigquery(
 def run_cloud_sync(
     output_base_dir: str, duckdb_path: str, dry_run: bool = False
 ) -> None:
-    """Executes GCS and BigQuery sync when enabled, or logs a local dry-run summary."""
+    """Executes GCS and BigQuery sync when enabled, or logs a local dry-run summary.
+
+    Args:
+        output_base_dir: Local root directory containing Parquet artifacts.
+        duckdb_path: Path to the DuckDB warehouse file.
+        dry_run: When ``True``, logs the sync inventory without calling GCP APIs.
+    """
     cfg = get_gcp_config()
     parquet_files = _discover_parquet_files(output_base_dir)
 
+    # Short-circuit before any GCP API calls when running in dry-run or disabled mode.
     if dry_run or not cfg["enabled"]:
         logger.info(
             "GCP sync is disabled (set GCP_SYNC_ENABLED=true to enable). "
@@ -141,6 +188,7 @@ def run_cloud_sync(
 
 
 if __name__ == "__main__":
+    # Honor pipeline env vars so CLI and Airflow/container invocations stay aligned.
     default_output = os.getenv(
         "CLICK_STREAM_OUTPUT_PREFIX", "projects/ecommerce/output_data"
     )

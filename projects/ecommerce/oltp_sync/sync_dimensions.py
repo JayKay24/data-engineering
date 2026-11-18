@@ -1,3 +1,10 @@
+"""PostgreSQL OLTP dimension management and Parquet export utility.
+
+Seeds baseline ``dim_customers`` and ``dim_products`` tables in PostgreSQL,
+extracts them into Pandas DataFrames, and writes Parquet files for downstream
+dbt/DuckDB consumption (with an optional offline fallback).
+"""
+
 import argparse
 import os
 import sys
@@ -48,10 +55,18 @@ CREATE TABLE IF NOT EXISTS dim_products (
 
 
 def seed_postgres_dimensions() -> None:
-    """Ensures OLTP dimension tables exist and upserts baseline customer/product records."""
+    """Ensures OLTP dimension tables exist and upserts baseline records.
+
+    Creates ``dim_customers`` and ``dim_products`` if missing, then performs
+    idempotent upserts using ``DEFAULT_CUSTOMERS`` and ``DEFAULT_PRODUCTS``.
+
+    Raises:
+        psycopg2.Error: If the database connection or SQL execution fails.
+    """
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(DDL_STATEMENTS)
+            # Use ON CONFLICT DO UPDATE so repeated runs stay idempotent and refresh attributes.
             cur.executemany(
                 """
                 INSERT INTO dim_customers (user_id, segment, region, registration_date)
@@ -82,9 +97,18 @@ def seed_postgres_dimensions() -> None:
 
 
 def extract_dimensions_from_postgres() -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Extracts customer and product dimension tables from PostgreSQL into DataFrames."""
+    """Extracts customer and product dimension tables from PostgreSQL.
+
+    Returns:
+        A ``(customers_df, products_df)`` tuple containing the extracted
+        ``dim_customers`` and ``dim_products`` DataFrames ordered by primary key.
+
+    Raises:
+        psycopg2.Error: If querying PostgreSQL fails.
+    """
     with get_connection() as conn:
         with conn.cursor() as cur:
+            # Cast DATE/NUMERIC to text/float to avoid Python date/Decimal objects in Parquet.
             cur.execute(
                 "SELECT user_id, segment, region, registration_date::text FROM dim_customers ORDER BY user_id;"
             )
@@ -108,7 +132,17 @@ def write_dimension_parquet(
     products_df: pd.DataFrame,
     output_base_dir: str,
 ) -> None:
-    """Persists customer and product dimension DataFrames as Parquet for dbt/DuckDB consumption."""
+    """Persists customer and product dimension DataFrames as Parquet files.
+
+    Writes each table into its own subdirectory under ``output_base_dir``
+    (``dim_customers/`` and ``dim_products/``) for downstream dbt/DuckDB reads.
+
+    Args:
+        customers_df: Customer dimension DataFrame.
+        products_df: Product dimension DataFrame.
+        output_base_dir: Root directory where dimension subdirectories are created.
+    """
+    # Isolate each dimension in its own folder so DuckDB/dbt can glob per-table directories.
     cust_dir = os.path.join(output_base_dir, "dim_customers")
     prod_dir = os.path.join(output_base_dir, "dim_products")
     os.makedirs(cust_dir, exist_ok=True)
@@ -117,6 +151,7 @@ def write_dimension_parquet(
     cust_path = os.path.join(cust_dir, "dim_customers.parquet")
     prod_path = os.path.join(prod_dir, "dim_products.parquet")
 
+    # Omit the Pandas DataFrame index so Parquet schemas match the SQL table columns.
     customers_df.to_parquet(cust_path, index=False, engine="pyarrow")
     products_df.to_parquet(prod_path, index=False, engine="pyarrow")
 
@@ -128,13 +163,26 @@ def sync_dimensions(
     output_base_dir: str = "projects/ecommerce/output_data",
     seed_from_defaults_on_offline: bool = False,
 ) -> None:
-    """Seeds PostgreSQL OLTP dimension tables and exports them to Parquet."""
+    """Seeds PostgreSQL OLTP dimension tables and exports them to Parquet.
+
+    Args:
+        output_base_dir: Base directory where Parquet dimension subdirectories
+            are written. Defaults to ``"projects/ecommerce/output_data"``.
+        seed_from_defaults_on_offline: When ``True``, falls back to the
+            in-memory ``DEFAULT_CUSTOMERS`` and ``DEFAULT_PRODUCTS`` datasets if
+            PostgreSQL is unreachable instead of raising an error.
+
+    Raises:
+        psycopg2.OperationalError: If PostgreSQL is unreachable and
+            ``seed_from_defaults_on_offline`` is ``False``.
+    """
     try:
         seed_postgres_dimensions()
         customers_df, products_df = extract_dimensions_from_postgres()
     except psycopg2.OperationalError as exc:
         if not seed_from_defaults_on_offline:
             raise
+        # Support local/CI runs without a live Postgres container when offline fallback is enabled.
         logger.warning(
             "PostgreSQL unavailable (%s). Falling back to baseline dimension datasets.",
             exc,
@@ -155,6 +203,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Seed and extract PostgreSQL OLTP dimension tables to Parquet."
     )
+    # Honor CLICK_STREAM_OUTPUT_PREFIX so containerized/Airflow runs share the same output root.
     parser.add_argument(
         "--output-dir",
         default=os.getenv(

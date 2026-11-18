@@ -1,8 +1,15 @@
+"""Great Expectations validation gate for the e-commerce data pipeline.
+
+Validates both the raw JSONL event feed and available DuckDB Gold marts,
+emitting a structured JSON quality report for downstream observability.
+"""
+
 import argparse
 from datetime import datetime, timezone
 import json
 import os
 import sys
+from typing import Any
 
 import great_expectations as gx
 import pandas as pd
@@ -13,10 +20,21 @@ from projects.ecommerce.duckdb_utils import connect_duckdb_readonly
 logger = get_logger("EcommerceGXValidator")
 
 
-def _extract_suite_results(suite_name: str, validation_result) -> dict:
-    """Normalizes a Great Expectations ValidationResult into a serializable summary."""
+def _extract_suite_results(suite_name: str, validation_result: Any) -> dict[str, Any]:
+    """Normalizes a Great Expectations ValidationResult into a JSON-serializable summary.
+
+    Args:
+        suite_name: Identifier of the ExpectationSuite that was executed.
+        validation_result: Raw validation result object returned by
+            ``batch.validate(...)``.
+
+    Returns:
+        A dictionary containing the suite name, overall ``success`` flag,
+        ``passed_count``, ``total_count``, and a per-expectation ``checks`` list.
+    """
     checks = []
     for res in validation_result.results:
+        # Guard against missing expectation metadata on custom or malformed results.
         exp_type = (
             res.expectation_config.type
             if res.expectation_config
@@ -28,6 +46,8 @@ def _extract_suite_results(suite_name: str, validation_result) -> dict:
             else "N/A"
         )
         unexpected_count = res.result.get("unexpected_count", 0) if res.result else 0
+
+        # Cast to native Python primitives because GX/NumPy values may not be JSON-safe.
         checks.append(
             {
                 "expectation_type": exp_type,
@@ -48,13 +68,27 @@ def _extract_suite_results(suite_name: str, validation_result) -> dict:
 
 
 def _validate_dataframe(
-    context,
+    context: Any,
     source_name: str,
     suite_name: str,
     df: pd.DataFrame,
-    expectations: list,
-) -> dict:
-    """Runs an Expectation list against a Pandas DataFrame in an ephemeral GX context."""
+    expectations: list[Any],
+) -> dict[str, Any]:
+    """Runs an Expectation list against a Pandas DataFrame in an ephemeral GX context.
+
+    Args:
+        context: Active Great Expectations DataContext (ephemeral mode).
+        source_name: Unique name for the Pandas data source and derived asset/batch.
+        suite_name: Name assigned to the ExpectationSuite in the GX context.
+        df: In-memory Pandas DataFrame to validate.
+        expectations: List of Great Expectations ``Expectation`` instances to
+            evaluate against ``df``.
+
+    Returns:
+        Normalized suite summary dictionary produced by
+        ``_extract_suite_results``.
+    """
+    # Wire up the GX v1+ fluent API: data source -> dataframe asset -> whole-DF batch.
     data_source = context.data_sources.add_pandas(name=source_name)
     data_asset = data_source.add_dataframe_asset(name=f"{source_name}_asset")
     batch_def = data_asset.add_batch_definition_whole_dataframe(
@@ -83,14 +117,33 @@ def validate_ecommerce_pipeline(
     duckdb_path: str,
     output_report_path: str,
 ) -> bool:
-    """Validates raw e-commerce events and available DuckDB Gold marts with Great Expectations."""
+    """Validates raw e-commerce events and available DuckDB Gold marts with GX.
+
+    Executes data quality suites against the raw JSONL event feed and, when
+    present, the ``daily_category_sales``, ``daily_url_conversion``, and
+    ``customer_segment_spending`` DuckDB Gold tables. Writes a combined JSON
+    report to ``output_report_path``.
+
+    Args:
+        events_json_path: Path to the newline-delimited JSON raw events file.
+        duckdb_path: Path to the DuckDB warehouse file containing Gold marts.
+        output_report_path: Destination file path for the JSON validation report.
+
+    Returns:
+        ``True`` if every executed ExpectationSuite succeeded; ``False`` otherwise.
+
+    Raises:
+        FileNotFoundError: If ``events_json_path`` does not exist on disk.
+    """
+    # Use an ephemeral context so validation is stateless and needs no gx/ config dir.
     context = gx.get_context(mode="ephemeral")
-    suites_report: list[dict] = []
+    suites_report: list[dict[str, Any]] = []
 
     # 1. Raw Event Feed Validation
     if not os.path.exists(events_json_path):
         raise FileNotFoundError(f"Events JSON file not found: {events_json_path}")
 
+    # Input feed is newline-delimited JSON (JSONL), one event object per line.
     df_events = pd.read_json(events_json_path, lines=True)
     logger.info("Loaded %d raw e-commerce events for GX validation.", len(df_events))
 
@@ -113,9 +166,10 @@ def validate_ecommerce_pipeline(
         )
     )
 
-    # 2. Gold Warehouse DuckDB Marts Validation (when DuckDB exists)
+    # 2. Gold Warehouse DuckDB Marts Validation (skipped gracefully if not yet built)
     if os.path.exists(duckdb_path):
         with connect_duckdb_readonly(duckdb_path) as conn:
+            # Inspect main-schema tables so missing marts are skipped rather than failing.
             existing_tables = {
                 row[0]
                 for row in conn.execute(
@@ -205,6 +259,7 @@ def validate_ecommerce_pipeline(
         "suites": suites_report,
     }
 
+    # Resolve abspath first so relative filenames without a directory still create cleanly.
     os.makedirs(os.path.dirname(os.path.abspath(output_report_path)), exist_ok=True)
     with open(output_report_path, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2)
@@ -214,6 +269,7 @@ def validate_ecommerce_pipeline(
 
 
 if __name__ == "__main__":
+    # Prefer the workspace path for local runs; fall back to the bundled path inside PEX builds.
     script_dir = os.path.dirname(os.path.abspath(__file__))
     packaged_events = os.path.normpath(
         os.path.join(script_dir, "../streaming_layer/input_data/ecommerce_events.json")
@@ -248,6 +304,7 @@ if __name__ == "__main__":
         is_valid = validate_ecommerce_pipeline(
             args.events_json, args.duckdb_path, args.output_report
         )
+        # Allow callers (e.g. Airflow/CI) to gate on validation failures via --fail-on-error.
         if not is_valid and args.fail_on_error:
             logger.error("Great Expectations validation failed.")
             sys.exit(1)
