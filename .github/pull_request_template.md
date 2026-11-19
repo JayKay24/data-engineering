@@ -8,3 +8,7 @@
 ### Verification
 <!-- Document successful test/run commands executed during verification (e.g. ./pants lint ::). -->
 - 
+
+### Documentation & Wiki Sync
+- [ ] Updated `README.md`, `projects/ecommerce/README.md`, and `agents.md` (if applicable)
+- [ ] Updated relevant `docs/wiki/` pages and verified with `./pants run docs:validate_wiki`

@@ -1,0 +1,87 @@
+name: Sync GitHub Wiki
+
+on:
+  pull_request:
+    branches:
+      - master
+      - develop
+    paths:
+      - "docs/wiki/**"
+      - "docs/validate_wiki.py"
+      - ".github/workflows/wiki-sync.yml"
+  push:
+    branches:
+      - master
+      - develop
+    paths:
+      - "docs/wiki/**"
+      - "docs/validate_wiki.py"
+      - ".github/workflows/wiki-sync.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: wiki-sync-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  validate-wiki:
+    name: Validate Wiki Links, Anchors & Markdown
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Run Wiki Validator
+        run: python3 docs/validate_wiki.py --wiki-dir docs/wiki
+
+  sync-wiki:
+    name: Sync docs/wiki to GitHub Wiki
+    needs: validate-wiki
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git Identity
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Clone and Mirror Wiki
+        env:
+          WIKI_AUTH_TOKEN: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}
+        run: |
+          WIKI_REPO_URL="https://x-access-token:${WIKI_AUTH_TOKEN}@github.com/${{ github.repository }}.wiki.git"
+
+          echo "Cloning GitHub Wiki repository..."
+          if ! git clone "$WIKI_REPO_URL" wiki_temp; then
+            echo "::warning::GitHub Wiki repository is not yet initialized on GitHub."
+            echo "::notice::Visit https://github.com/${{ github.repository }}/wiki and save an initial page to enable automatic sync."
+            exit 0
+          fi
+
+          echo "Mirroring docs/wiki/ to wiki_temp/ (exact sync with --delete)..."
+          rsync -av --delete --exclude='.git' docs/wiki/ wiki_temp/
+
+          cd wiki_temp
+          if [ -n "$(git status --porcelain)" ]; then
+            git add -A
+            git commit -m "docs(wiki): sync wiki from ${{ github.sha }} [skip ci]"
+            DEFAULT_BRANCH=$(git branch --show-current || echo "master")
+            echo "Pushing wiki updates to $DEFAULT_BRANCH..."
+            git push origin "$DEFAULT_BRANCH"
+            echo "GitHub Wiki sync complete."
+          else
+            echo "No wiki changes detected. Wiki is already up to date."
+          fi

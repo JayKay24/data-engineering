@@ -3,7 +3,7 @@
 Welcome, Agent! This file serves as the source of truth for the codebase architecture, environment setup, and rules of engagement for this repository.
 
 > [!IMPORTANT]
-> **Rule of Preservation:** When making significant updates to the codebase (e.g., adding modules, updating dependencies, changing configurations, adding or removing tools of significance, or introducing new pipelines), you **MUST** update `README.md` (including its tech stack shield badges), `projects/ecommerce/README.md`, and this `AGENTS.md` file to keep the documentation and agent context synchronized.
+> **Rule of Preservation:** When making significant updates to the codebase (e.g., adding modules, updating dependencies, changing configurations, adding or removing tools of significance, or introducing new pipelines), you **MUST** update `README.md` (including its tech stack shield badges), `projects/ecommerce/README.md`, the relevant Wiki pages in `docs/wiki/` (validated with `./pants run docs:validate_wiki`), and this `AGENTS.md` file to keep documentation and agent context synchronized.
 
 ---
 
@@ -23,8 +23,10 @@ This repository is a **Python Data Engineering Monorepo** managed by the **Pants
 
 ### Project Structure
 * `.github/pull_request_template.md`: Template for standardizing PR descriptions.
+* `.github/workflows/wiki-sync.yml`: CI workflow validating `docs/wiki/` on PRs and mirroring changes to `data-engineering.wiki.git` on pushes to `develop` and `master`.
 * `.pre-commit-config.yaml`: Pre-commit hooks configuration to run `./pants fmt` and `./pants lint` locally.
 * `3rdparty/`: Dependency management (`requirements.txt`, Pants `user_reqs.lock`, `extract_lock_constraints.py` for lockfile-pinned Docker builds, and `BUILD`).
+* `docs/`: Version-controlled GitHub Wiki source (`docs/wiki/*.md`), zero-dependency link/anchor/Mermaid validator (`docs/validate_wiki.py`), and Pants `BUILD` (`docs:validate_wiki`).
 * `projects/common/`: Shared monorepo utilities.
   * `logger.py`: Centralized structured logging factory (`get_logger`).
   * `kafka_avro.py`: Shared Avro producer serialization, schema loader, delivery callbacks, and PySpark ABRiS deserialization.
@@ -87,7 +89,11 @@ This project is bootstrapped to work seamlessly with VS Code / Antigravity IDE w
 1. **STRICTLY LOCAL SCOPE:** Do not write or modify any VS Code/IDE configurations outside the `data-engineering` project directory.
 2. **PANTS COMPLIANCE:** Always follow the target-based workflow for Pants commands (`./pants fmt ::`, `./pants lint ::`, `./pants package ::`, `./pants run <target>`).
 3. **SPARK COMPATIBILITY:** Run PySpark tasks using Java 17 via the `JAVA_HOME` configuration found in `.env`.
-4. **DOCUMENTATION SYNCHRONIZATION:** Always synchronize `README.md` (including badges and project structure), `projects/ecommerce/README.md`, and `AGENTS.md` whenever architectural, configuration, dependency, or pipeline changes occur.
+4. **DOCUMENTATION & WIKI SYNCHRONIZATION:** Always synchronize `README.md` (including badges and project structure), `projects/ecommerce/README.md`, `docs/wiki/` (verified with `./pants run docs:validate_wiki`), and `AGENTS.md` whenever architectural, schema, dependency, or pipeline changes occur.
+   * **Schemas / Avro / SQL Models** $\rightarrow$ `docs/wiki/Data-Catalog-and-Lineage.md` & `docs/wiki/Data-Contracts-and-Governance.md`
+   * **Architecture / Pants / Docker / Modules** $\rightarrow$ `docs/wiki/Architecture-Overview.md` & `docs/wiki/Architecture-Decision-Records.md`
+   * **Requirements / Quality Gates / Tests** $\rightarrow$ `docs/wiki/Platform-Requirements.md`, `docs/wiki/Testing-and-Quality-Gates.md`, & `docs/wiki/Requirements-Traceability.md`
+   * **Milestones / Edge-Case Decisions** $\rightarrow$ `docs/wiki/Project-History.md` & `docs/wiki/Engineering-Design-Decisions.md`
 5. **LOCAL SELF-REVIEW & ITERATION:** Before committing or opening a PR, review `git diff` locally for PySpark/data engineering best practices (partitioning, avoiding redundant `.collect()` on large datasets), Ruff/PEP8 compliance, edge cases, and test coverage, and iterate locally until all checks pass cleanly.
 
 ---
@@ -96,7 +102,7 @@ This project is bootstrapped to work seamlessly with VS Code / Antigravity IDE w
 
 When implementing new features or bug fixes, follow this workflow:
 
-1. **Local Implementation & Verification:** Implement changes locally on a feature branch, verify they run/package/lint cleanly (`./pants fmt ::`, `./pants lint ::`, `./pants package ::`, and pipeline verification), and synchronize `README.md`, `projects/ecommerce/README.md`, and `AGENTS.md`.
+1. **Local Implementation & Verification:** Implement changes locally on a feature branch, verify they run/package/lint cleanly (`./pants fmt ::`, `./pants lint ::`, `./pants package ::`, `./pants run docs:validate_wiki`, and pipeline verification), and synchronize `README.md`, `projects/ecommerce/README.md`, `docs/wiki/`, and `AGENTS.md`.
 2. **Local Review & Iteration:** Inspect the full `git diff` yourself to catch bugs, edge cases, unused dependencies, or formatting/lint issues, and iterate locally until the diff is clean.
 3. **Commit & Push:** Stage and commit your verified changes (`git commit`) and push the feature branch to `origin`.
 4. **PR Creation Against `develop`:** Once done with the changes, use the `github` MCP server to create a Pull Request targeting the **`develop`** branch (`base: "develop"`). The PR description must follow `.github/pull_request_template.md`:

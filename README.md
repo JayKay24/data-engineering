@@ -41,7 +41,9 @@ I manage this monorepo using **Pantsbuild (Pants)**, targeting **Python 3.10.9**
 ```text
 data-engineering/
 ├── .github/
-│   └── pull_request_template.md       # Template for standardizing PR descriptions
+│   ├── pull_request_template.md       # Template for standardizing PR descriptions
+│   └── workflows/
+│       └── wiki-sync.yml              # Validates docs/wiki/ on PRs & mirrors to GitHub Wiki
 ├── .gitignore                         # Python, Pants, dbt, Spark, and OS ignore rules
 ├── .pre-commit-config.yaml            # Configures the local pre-commit hook
 ├── .python-version                    # Sets project-local Python to 3.10.9
@@ -51,8 +53,13 @@ data-engineering/
 ├── 3rdparty/
 │   ├── BUILD                          # Global dependency & lockfile targets
 │   ├── requirements.txt               # Project Python requirements
+│   ├── constraints.txt                # Transitive dependency constraints
 │   ├── user_reqs.lock                 # Pants generated dependency lockfile
 │   └── extract_lock_constraints.py    # Extracts exact lockfile pins for Docker builds
+├── docs/
+│   ├── BUILD                          # Pants targets for Wiki validation
+│   ├── validate_wiki.py               # Link, GFM anchor, and Mermaid fence validator
+│   └── wiki/                          # Canonical source for the GitHub Wiki
 └── projects/
     ├── common/                        # Shared utilities (structured logging, Kafka Avro/ABRiS helpers, Kafka Docker stack)
     └── ecommerce/                     # Unified E-Commerce Real-Time Lambda Architecture
@@ -66,8 +73,9 @@ data-engineering/
 
 ---
 
-## 📁 Projects
+## 📁 Projects & Documentation
 
+*   **[GitHub Wiki](https://github.com/JayKay24/data-engineering/wiki)** — Comprehensive engineering Wiki (`docs/wiki/`), automatically validated on PRs and synced to GitHub Wiki via `.github/workflows/wiki-sync.yml`.
 *   [projects/common/](projects/common/) — Shared monorepo utilities including unified structured logging, Kafka/Avro/ABRiS helpers, and the shared Kafka/Schema Registry Docker Compose stack.
 *   [projects/ecommerce/](projects/ecommerce/) — End-to-end E-Commerce Lambda Architecture combining Kafka/Avro streaming, PySpark + Delta Lake aggregations, PyDeequ Spark verification, PostgreSQL OLTP dimension sync, dbt + DuckDB analytical marts, Great Expectations quality gates, optional GCP export, and containerized Airflow + Streamlit orchestration (see [projects/ecommerce/README.md](projects/ecommerce/README.md)).
 
@@ -107,6 +115,7 @@ pre-commit install
 | **Format check** | `./pants fmt --check ::` | Checks formatting without rewriting files |
 | **Format** | `./pants fmt ::` | Runs Ruff formatter to auto-fix styling issues |
 | **Package** | `./pants package ::` | Packages all PEX binaries and Docker image targets |
+| **Validate Wiki** | `./pants run docs:validate_wiki` | Validates `docs/wiki/` links, GFM anchors & fences |
 | **Update Lockfile**| `./pants generate-lockfiles` | Re-compiles dependencies in `3rdparty/requirements.txt` |
 | **Inspect Graph** | `./pants peek ::` | Lists metadata and inferred dependencies for all targets |
 
