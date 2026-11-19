@@ -1,0 +1,11 @@
+slice_name: Pipeline Freshness Monitor
+description: null
+certified_by: null
+certification_details: null
+viz_type: table
+params: '{"viz_type": "table", "query_mode": "raw", "all_columns": ["latest_stream_window", "batch_processed_at", "pipeline_latency"], "adhoc_filters": [], "row_limit": 50, "table_timestamp_format": "smart_date", "extra_form_data": {}}'
+query_context: null
+cache_timeout: null
+uuid: 33333333-3333-4333-8333-333333333310
+version: 1.0.0
+dataset_uuid: 22222222-2222-4222-8222-222222222206

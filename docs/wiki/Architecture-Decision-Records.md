@@ -20,6 +20,7 @@ This catalog documents the foundational Architecture Decision Records (ADRs) for
 | **ADR-010** | [Lock-Resilient Read-Only DuckDB Snapshot Fallback](#adr-010-lock-resilient-read-only-duckdb-snapshot-fallback)                            | `Accepted` | Reliability     | PR [#24](https://github.com/JayKay24/data-engineering/pull/24)                                     |
 | **ADR-011** | [Lockfile-Driven Docker Builds & Isolated `/opt/pipeline-venv`](#adr-011-lockfile-driven-docker-builds--isolated-optpipeline-venv)        | `Accepted` | Containers      | PR [#24](https://github.com/JayKay24/data-engineering/pull/24)                                     |
 | **ADR-012** | [Monorepo Consolidation into `projects/ecommerce` & Local Agent Review](#adr-012-monorepo-consolidation-into-projectsecommerce--local-agent-review) | `Accepted` | Consolidation | PR [#24](https://github.com/JayKay24/data-engineering/pull/24), [#25](https://github.com/JayKay24/data-engineering/pull/25) |
+| **ADR-013** | [Migrating Executive BI from Streamlit to Apache Superset (Dashboards-as-Code)](#adr-013-migrating-executive-bi-from-streamlit-to-apache-superset-dashboards-as-code) | `Accepted` | Serving / BI | Apache Superset Migration |
 
 ---
 
@@ -103,7 +104,7 @@ Standardize speed-layer persistence on **Delta Lake (`3.2.0`)** (`sinks.py`) wit
 Serving executive dashboards directly from PySpark incurs high JVM startup latency and memory overhead for ad-hoc analytical SQL.
 
 ### Decision
-Adopt a **Lambda Architecture** pairing PySpark Structured Streaming (Speed Layer) with **DuckDB + `dbt-duckdb`** (Batch Layer) to materialize Gold analytical tables inside `ecommerce.duckdb` for sub-second Streamlit queries.
+Adopt a **Lambda Architecture** pairing PySpark Structured Streaming (Speed Layer) with **DuckDB + `dbt-duckdb`** (Batch Layer) to materialize Gold analytical tables inside `ecommerce.duckdb` for sub-second BI queries.
 
 ### Consequences
 - **Positive**: Zero-infrastructure analytical warehouse, modular SQL transformations, and native Parquet scanning without an external warehouse cluster.
@@ -167,7 +168,7 @@ Leverage the PostgreSQL 16 service in `orchestration/docker-compose.yml` via `ol
 No single data quality library natively spans distributed Spark DataFrames and DuckDB/Pandas Gold marts without serialization overhead.
 
 ### Decision
-Use **Amazon PyDeequ** inside `streaming_layer/quality_checks.py` for Spark-level batch verification and **Great Expectations** inside `quality/validate_ecommerce.py` for raw JSON feeds and Gold DuckDB marts, surfacing both JSON reports in Streamlit Tab 5.
+Use **Amazon PyDeequ** inside `streaming_layer/quality_checks.py` for Spark-level batch verification and **Great Expectations** inside `quality/validate_ecommerce.py` for raw JSON feeds and Gold DuckDB marts, persisting both JSON and flat Parquet reports surfaced through dbt monitor views in Apache Superset.
 
 ### Consequences
 - **Positive**: Zero-copy Spark validation at ingress and comprehensive Gold warehouse assertions prior to optional BigQuery export.
@@ -219,3 +220,24 @@ Consolidate the platform under top-level `projects/ecommerce/`, fold all retaine
 
 ### Consequences
 - **Positive**: 100% dependency utilization in `3rdparty/requirements.txt`, cleaner paths (`projects/ecommerce`), and unified end-to-end architecture.
+
+---
+
+## ADR-013: Migrating Executive BI from Streamlit to Apache Superset (Dashboards-as-Code)
+
+### Status
+`Accepted`
+
+### Context
+Streamlit + Plotly served well for early prototyping, but lacked production BI capabilities (SQL Lab, RBAC, semantic virtual datasets, cross-filtering, and declarative multi-user caching) and required custom Python UI code for every chart. Meanwhile, open-core BI tools such as Metabase gate Git serialization and granular security behind paid licenses.
+
+### Decision
+Replace `orchestration/viz/` (Streamlit + Plotly) with **Apache Superset (`6.1.0`)** backed by the shared PostgreSQL 16 metadata store (`superset` database), **Redis 7** query/filter caching, a read-only `duckdb-engine` connection pinned to Pants's locked `duckdb` version, flat Parquet dbt monitor views (`gx_quality_checks`, `pydeequ_quality_checks`), and Git-versioned **Dashboards-as-Code** YAML assets validated by `package_assets.py` and auto-imported via `bootstrap.sh`.
+
+### Alternatives Considered
+- _Metabase OSS_: Simpler GUI onboarding, but lacks free Git-based dashboard serialization and relies on a third-party JDBC DuckDB driver.
+- _Retain Streamlit_: Poor fit for production self-serve BI and ad-hoc SQL exploration.
+
+### Consequences
+- **Positive**: 100% free Apache 2.0 BI suite with SQL Lab, Redis caching, version-controlled YAML dashboards, and exact DuckDB lockfile parity.
+- **Negative**: Slightly higher container memory footprint (Superset + Redis) compared to a single Streamlit script, mitigated by scripted `bootstrap.sh` provisioning.

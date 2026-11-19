@@ -8,7 +8,7 @@ The platform bridges low-latency stream processing with ACID-compliant batch war
 - A **Speed Layer** (Kafka + Confluent Schema Registry + PySpark Structured Streaming + ABRiS + PyDeequ + Delta Lake) for continuous event-time KPIs.
 - An **OLTP Dimension Sync Layer** (PostgreSQL 16 + `psycopg2-binary` + PyArrow) for customer and product master data enrichment.
 - A **Batch Warehouse Layer** (dbt + DuckDB) for curated Silver/Gold dimensional marts and freshness monitoring.
-- A **Quality & Cloud Governance Layer** (Great Expectations + Google Cloud Storage + BigQuery) and an **Orchestration & Serving Layer** (Apache Airflow 2.9.3 + Streamlit + Plotly).
+- A **Quality & Cloud Governance Layer** (Great Expectations + Google Cloud Storage + BigQuery) and an **Orchestration & Serving Layer** (Apache Airflow 2.9.3 + Apache Superset 6.1.0 + Redis 7).
 
 ---
 
@@ -26,7 +26,7 @@ flowchart TD
     Build["Hermetic Pants Targets & Docker Builds"]
     Stream["Kafka Avro Producers, Spark Streams & PyDeequ"]
     Warehouse["OLTP Sync, dbt Models, GX Gates & BigQuery"]
-    Dash["Streamlit Executive UI & Airflow Monitoring"]
+    Dash["Apache Superset BI & Airflow Monitoring"]
   end
 
   DE --> Build
@@ -46,7 +46,7 @@ flowchart TD
 - **Automated Testing**: Enforce column integrity (`not_null`) via `dbt test` and Gold warehouse assertions via Great Expectations.
 
 ### 2.3 Business & Executive Stakeholder
-- **Real-Time KPI Monitoring**: Inspect Total Revenue, Units Sold, Cumulative Users, and Average Conversion Rate at `http://localhost:8501`.
+- **Real-Time KPI Monitoring**: Inspect Total Revenue, Units Sold, Cumulative Users, and Average Conversion Rate at `http://localhost:8088` (`admin` / `admin`).
 - **Customer & Brand Analytics**: Slice purchase performance across customer segments, geographic regions, and product brands.
 - **Pipeline Trust & Freshness**: Verify data recency (`last_ingest`) and live PyDeequ / Great Expectations pass rates directly in the dashboard.
 
@@ -104,5 +104,5 @@ The Spark engine must compute **8 concurrent KPI aggregations**:
 
 ## 7. Orchestration & Executive BI Requirements (`orchestration/`)
 
-- **Sensor-Driven Airflow DAG (`ecommerce_batch_refresh`)**: Scheduled every 15 minutes (`*/15 * * * *`, `catchup=False`), beginning with `DeltaStreamSensor` (`min_ready_tables=3`, `poke_interval=20s`, `timeout=600s`, `mode="reschedule"`) before executing OLTP sync $\rightarrow$ dbt staging $\rightarrow$ dbt marts $\rightarrow$ `dbt test` $\rightarrow$ Great Expectations $\rightarrow$ GCP cloud sync.
-- **Streamlit Dashboard (`viz/app.py`)**: Expose 4 top-level KPI cards and 5 interactive tabs (`Category Sales`, `URL Conversion & Funnels`, `User Growth`, `Customer & Brand Intelligence`, and `Data Quality & Pipeline Health`) backed by `@st.cache_data(ttl=15)` DuckDB queries and JSON quality report readers.
+- **Sensor-Driven Airflow DAG (`ecommerce_batch_refresh`)**: Scheduled every 15 minutes (`*/15 * * * *`, `catchup=False`), beginning with `DeltaStreamSensor` (`min_ready_tables=3`, `poke_interval=20s`, `timeout=600s`, `mode="reschedule"`) before executing OLTP sync $\rightarrow$ dbt staging $\rightarrow$ dbt marts $\rightarrow$ `dbt test` $\rightarrow$ Great Expectations $\rightarrow$ dbt monitors $\rightarrow$ GCP cloud sync.
+- **Apache Superset BI (`superset/`)**: Serve the declarative **E-Commerce Real-Time Intelligence** dashboard (`:8088`) backed by shared PostgreSQL 16 metadata, Redis 7 query/filter caching, and a read-only `duckdb-engine` connection querying all Gold marts and quality monitors (`last_ingest`, `gx_quality_checks`, `pydeequ_quality_checks`).

@@ -7,6 +7,8 @@ import sys
 # Configure Spark version before importing PyDeequ
 os.environ.setdefault("SPARK_VERSION", "3.5")
 
+import pandas as pd  # noqa: E402
+import pyarrow  # noqa: E402, F401 - ensures pyarrow engine is registered for Parquet export
 import pydeequ  # noqa: E402
 from pydeequ.checks import Check, CheckLevel  # noqa: E402
 from pydeequ.verification import VerificationResult, VerificationSuite  # noqa: E402
@@ -25,7 +27,8 @@ def run_pydeequ_verification(
     """Runs Amazon Deequ data quality verification on a bounded e-commerce DataFrame.
 
     Validates schema completeness, allowed event types, and non-negative pricing,
-    and persists a JSON summary report for downstream observability and Streamlit.
+    and persists both a JSON summary report and a flat Parquet snapshot for
+    dbt monitor views and Apache Superset observability.
     """
     if df.isStreaming:
         logger.warning(
@@ -70,6 +73,24 @@ def run_pydeequ_verification(
     report_path = os.path.join(metrics_dir, "latest_report.json")
     with open(report_path, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2, default=str)
+
+    # Persist flat Parquet snapshot for dbt monitor views and Apache Superset charting.
+    flat_rows = [
+        {
+            "engine": "pydeequ",
+            "generated_at": report["generated_at"],
+            "row_count": int(row_count),
+            "overall_status": overall_status,
+            "check_name": str(r.get("check", "")),
+            "check_level": str(r.get("check_level", "")),
+            "constraint": str(r.get("constraint", "")),
+            "constraint_status": str(r.get("constraint_status", "")),
+            "constraint_message": str(r.get("constraint_message", "")),
+        }
+        for r in rows
+    ]
+    parquet_path = os.path.join(metrics_dir, "pydeequ_checks.parquet")
+    pd.DataFrame(flat_rows).to_parquet(parquet_path, index=False, engine="pyarrow")
 
     logger.info(
         "PyDeequ verification finished with status=%s (%d constraints). Report: %s",

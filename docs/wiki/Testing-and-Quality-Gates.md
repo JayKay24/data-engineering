@@ -37,7 +37,7 @@ flowchart TD
 Every Python module and Pants `BUILD` target is validated deterministically without external services:
 - **Ruff Linting & Formatting**: Configured in `pants.toml` (`pants.backend.experimental.python.lint.ruff.check` & `ruff.format`).
 - **Pre-Commit Enforcement**: `.pre-commit-config.yaml` triggers `./pants fmt` and `./pants lint` automatically on staged Python files before every commit.
-- **Pants Dependency Inference & PEX Packaging**: Verifies all imports resolve cleanly against `3rdparty/user_reqs.lock` and builds self-contained PEX executables (`producer`, `stream_job`, `quality_checks`, `sync_dimensions`, `validate`, `export`, `app`).
+- **Pants Dependency Inference & PEX Packaging**: Verifies all imports resolve cleanly against `3rdparty/user_reqs.lock` and builds self-contained PEX executables (`producer`, `stream_job`, `quality_checks`, `sync_dimensions`, `validate`, `export`, `package_assets`, `validate_wiki`).
 
 ```bash
 ./pants fmt ::
@@ -50,7 +50,8 @@ Every Python module and Pants `BUILD` target is validated deterministically with
   projects/ecommerce/oltp_sync:sync_dimensions \
   projects/ecommerce/quality:validate \
   projects/ecommerce/cloud_sync:export \
-  projects/ecommerce/orchestration/viz:app
+  projects/ecommerce/orchestration/superset:package_assets \
+  docs:validate_wiki
 ```
 
 ---
@@ -67,7 +68,7 @@ Executed in `projects/ecommerce/streaming_layer/quality_checks.py` (`SPARK_VERSI
   5. `isComplete("event_time")`
   6. `isContainedIn("event_type", ["view", "add_to_cart", "purchase"])`
   7. `isNonNegative("price")`
-- **Artifact**: Writes structured JSON summary to `projects/ecommerce/output_data/pydeequ_metrics/latest_report.json` (visualized in Streamlit Tab 5).
+- **Artifact**: Writes structured JSON summary (`latest_report.json`) and flat Parquet table (`pydeequ_checks.parquet`) under `projects/ecommerce/output_data/pydeequ_metrics/` (exposed via `models/monitors/pydeequ_quality_checks.sql` in Apache Superset).
 - **Execution**:
   ```bash
   source .env && ./pants run projects/ecommerce/streaming_layer:quality_checks
@@ -101,7 +102,7 @@ Executed in `projects/ecommerce/quality/validate_ecommerce.py` using an ephemera
   - `gold_daily_url_conversion_suite`: `url` not null; `0.0 <= avg_conversion_rate <= 1.0`.
   - `gold_customer_segment_spending_suite`: `user_id`, `segment` not null; `total_revenue >= 0`.
 - **Lock-Safe Access**: Reads DuckDB via `connect_duckdb_readonly`, automatically falling back to a temporary snapshot if another process holds a lock.
-- **Artifact**: Saves structured results to `output_data/quality_reports/gx_validation_results.json`.
+- **Artifact**: Saves structured results to `output_data/quality_reports/gx_validation_results.json` and `output_data/quality_reports/gx_checks.parquet` (exposed via `models/monitors/gx_quality_checks.sql` in Apache Superset).
 - **Execution**:
   ```bash
   ./pants run projects/ecommerce/quality:validate -- --fail-on-error

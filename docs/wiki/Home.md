@@ -2,7 +2,7 @@
 
 Welcome to the official engineering documentation and architecture wiki for **`JayKay24/data-engineering`**, a **Python Data Engineering Monorepo** managed by **Pantsbuild (v2.22.0)** and centered on a unified **E-Commerce Real-Time Lambda Architecture** (`projects/ecommerce`).
 
-Modern e-commerce analytics require both **sub-minute operational visibility** (live conversion funnels, cart abandonment, and session behavior) and **curated dimensional warehousing** (customer segment spending, brand performance, and historical cohort retention). This platform unifies Kafka/Avro event streaming, PySpark Structured Streaming, Delta Lake ACID sinks, PostgreSQL 16 OLTP dimensional enrichment, dbt + DuckDB analytical modeling, dual-layer data quality governance (PyDeequ + Great Expectations), optional GCP lakehouse sync, and Apache Airflow + Streamlit orchestration under a single hermetic lockfile (`3rdparty/user_reqs.lock`).
+Modern e-commerce analytics require both **sub-minute operational visibility** (live conversion funnels, cart abandonment, and session behavior) and **curated dimensional warehousing** (customer segment spending, brand performance, and historical cohort retention). This platform unifies Kafka/Avro event streaming, PySpark Structured Streaming, Delta Lake ACID sinks, PostgreSQL 16 OLTP dimensional enrichment, dbt + DuckDB analytical modeling, dual-layer data quality governance (PyDeequ + Great Expectations), optional GCP lakehouse sync, and Apache Airflow + Apache Superset orchestration under a single hermetic lockfile (`3rdparty/user_reqs.lock`).
 
 ---
 
@@ -39,5 +39,5 @@ Explore the Data Engineering knowledge base by section:
 | **E-Commerce Platform Docs**  | Lambda Architecture quickstart and execution guide      | [projects/ecommerce/README.md](https://github.com/JayKay24/data-engineering/blob/develop/projects/ecommerce/README.md) |
 | **Kafka & Schema Registry**   | Shared Zookeeper (`:2181`), Kafka (`:9092`), SR (`:8081`) | [`projects/common/docker/docker-compose.yml`](https://github.com/JayKay24/data-engineering/blob/develop/projects/common/docker/docker-compose.yml) |
 | **Airflow Webserver UI**      | Orchestration DAG (`ecommerce_batch_refresh`)           | `http://localhost:8080` (`admin` / `admin`)                                                                |
-| **Streamlit Dashboard**       | Executive 5-tab analytics & data quality UI             | `http://localhost:8501`                                                                                    |
+| **Apache Superset BI**        | Dashboards-as-Code BI, SQL Lab & Data Quality Monitor   | `http://localhost:8088` (`admin` / `admin`)                                                                |
 | **Pull Requests**             | Feature and release PR history                          | [GitHub Pull Requests](https://github.com/JayKay24/data-engineering/pulls)                                 |

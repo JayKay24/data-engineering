@@ -1,0 +1,47 @@
+table_name: brand_category_performance
+main_dttm_col: null
+description: Product brand and category revenue enriched with PostgreSQL OLTP product catalog
+default_endpoint: null
+offset: 0
+cache_timeout: null
+schema: main
+sql: null
+params: null
+template_params: null
+filter_select_enabled: true
+fetch_values_predicate: null
+extra: null
+uuid: 22222222-2222-4222-8222-222222222205
+metrics:
+  - metric_name: brand_revenue
+    verbose_name: Brand Revenue
+    expression: COALESCE(SUM(total_revenue), 0)
+    metric_type: sum
+columns:
+  - column_name: brand
+    is_dttm: false
+    type: VARCHAR
+    groupby: true
+    filterable: true
+  - column_name: category
+    is_dttm: false
+    type: VARCHAR
+    groupby: true
+    filterable: true
+  - column_name: total_revenue
+    is_dttm: false
+    type: DOUBLE
+    groupby: false
+    filterable: true
+  - column_name: total_units
+    is_dttm: false
+    type: BIGINT
+    groupby: false
+    filterable: true
+  - column_name: avg_unit_price
+    is_dttm: false
+    type: DOUBLE
+    groupby: false
+    filterable: true
+version: 1.0.0
+database_uuid: 11111111-1111-4111-8111-111111111111

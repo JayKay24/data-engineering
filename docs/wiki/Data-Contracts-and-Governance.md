@@ -109,7 +109,7 @@ Within each window $w$ and page $u$, let $V_{u,w}$, $A_{u,w}$, and $P_{u,w}$ den
 - **Resolution**: `AvroSerializer` in `create_avro_producer` validates the payload against `ecommerce_event.avsc` and Confluent Schema Registry before writing to Kafka, rejecting malformed records at the source rather than breaking downstream PySpark or dbt casts.
 
 ### 3. The Concurrent DuckDB Reader Lock
-- **Context**: An engineer has `ecommerce.duckdb` open in DBeaver or Streamlit while the Airflow `run_great_expectations` or `sync_cloud_warehouse` task attempts to validate or export Gold marts.
+- **Context**: An engineer has `ecommerce.duckdb` open in DBeaver or Apache Superset while the Airflow `run_great_expectations` or `sync_cloud_warehouse` task attempts to validate or export Gold marts.
 - **Resolution**: `connect_duckdb_readonly` catches `duckdb.IOException ("Could not set lock")`, copies `ecommerce.duckdb` (and `.wal` if present) into an isolated `tempfile.TemporaryDirectory()`, and opens a clean read-only connection on the snapshot without failing the pipeline.
 
 ### 4. The Cold-Start Stream Delay

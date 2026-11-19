@@ -24,7 +24,7 @@ flowchart TD
     Batch["batch_layer/<br/>(dbt-duckdb, DuckDB CLI)"]
     Quality["quality/<br/>(Great Expectations + duckdb_utils)"]
     Cloud["cloud_sync/<br/>(GCS + BigQuery + db-dtypes)"]
-    Orch["orchestration/<br/>(Airflow 2.9.3, Postgres 16, Streamlit)"]
+    Orch["orchestration/<br/>(Airflow 2.9.3, Postgres 16, Redis 7, Superset 6.1.0)"]
   end
 
   Lock --> Extractor
@@ -51,7 +51,7 @@ flowchart TD
 | **`projects/ecommerce/batch_layer/`**    | `:dbt_files`, `:dbt_image`                     | `dbt-duckdb`, DuckDB `1.5.6`, Docker                  | SQL staging views, Gold analytical marts, freshness monitor        |
 | **`projects/ecommerce/quality/`**        | `:lib`, `:validate`                            | `great-expectations`, `pandas`, `duckdb`              | Ephemeral GX suites validating raw JSON and Gold DuckDB marts      |
 | **`projects/ecommerce/cloud_sync/`**     | `:lib`, `:export`                              | `google-cloud-storage`, `google-cloud-bigquery`, `db-dtypes` | Optional GCS Parquet upload & BigQuery Gold mart sync         |
-| **`projects/ecommerce/orchestration/`**  | `:compose_files`, `:airflow_image`, `dags:dags`, `viz:app`, `viz:viz_image` | Apache Airflow `2.9.3`, Postgres 16, Streamlit, Plotly | Sensor-driven DAG scheduling and 5-tab executive analytics UI   |
+| **`projects/ecommerce/orchestration/`**  | `:compose_files`, `:airflow_image`, `dags:dags`, `superset:package_assets`, `superset:superset_image` | Apache Airflow `2.9.3`, Postgres 16, Redis 7, Apache Superset `6.1.0`, `duckdb-engine` | Sensor-driven DAG scheduling and Dashboards-as-Code BI UI |
 
 ---
 
@@ -96,7 +96,7 @@ flowchart LR
    ```
 3. **dbt Materialization Strategy (`dbt_project.yml`)**:
    - `models/staging/` & `models/monitors/` $\rightarrow$ `view` (zero duplication over live Parquet).
-   - `models/marts/` $\rightarrow$ `table` (materialized Gold tables inside `ecommerce.duckdb` for sub-second Streamlit queries and BigQuery exports).
+   - `models/marts/` $\rightarrow$ `table` (materialized Gold tables inside `ecommerce.duckdb` for sub-second Superset BI queries and BigQuery exports).
 
 ---
 
@@ -112,12 +112,13 @@ flowchart LR
   DS --> DM["4. dbt_build_marts"]
   DM --> DT["5. dbt_test_all"]
   DT --> GX["6. run_great_expectations<br/>(--fail-on-error)"]
-  GX --> GCP["7. sync_cloud_warehouse<br/>(Optional GCP Sync)"]
+  GX --> MON["7. dbt_build_monitors"]
+  MON --> GCP["8. sync_cloud_warehouse<br/>(Optional GCP Sync)"]
 ```
 
 ### 5.2 Lockfile-Pinned Docker Builds
-All three Dockerfiles (`batch_layer/Dockerfile`, `orchestration/Dockerfile`, `orchestration/viz/Dockerfile`) are registered as Pants `docker_image` targets (`context_root = ""`, monorepo root) and work identically via `./pants package` or `make build`:
+All three Dockerfiles (`batch_layer/Dockerfile`, `orchestration/Dockerfile`, `orchestration/superset/Dockerfile`) are registered as Pants `docker_image` targets (`context_root = ""`, monorepo root) and work identically via `./pants package` or `make build`:
 - `3rdparty/extract_lock_constraints.py` generates `/tmp/pants-constraints.txt` directly from `3rdparty/user_reqs.lock`.
 - `batch_layer/Dockerfile` fetches the exact locked `duckdb` CLI binary (`v1.5.6`, `amd64` / `arm64`) alongside `dbt-core` and `dbt-duckdb`.
 - `orchestration/Dockerfile` builds an isolated `/opt/pipeline-venv` with exact lockfile pins while keeping Airflow `2.9.3` core pinned to official Airflow constraints.
-- `orchestration/viz/Dockerfile` installs `streamlit`, `duckdb`, `pandas`, `pyarrow`, and `plotly` at identical locked versions, guaranteeing binary compatibility with `ecommerce.duckdb`.
+- `orchestration/superset/Dockerfile` extends `apache/superset:6.1.0`, installs `duckdb`, `duckdb-engine`, `psycopg2-binary` (pinned to `user_reqs.lock`), and `redis`, and bootstraps the Dashboards-as-Code bundle (`http://localhost:8088`).

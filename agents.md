@@ -19,7 +19,7 @@ This repository is a **Python Data Engineering Monorepo** managed by the **Pants
 * **Streaming & Schema Governance:** Apache Kafka, Confluent Schema Registry, Avro, ABRiS
 * **OLTP & Cloud Storage:** PostgreSQL 16 (`psycopg2-binary`), Google Cloud Storage & BigQuery
 * **Data Quality:** Amazon PyDeequ (Spark layer) & Great Expectations (batch/Gold layer)
-* **Orchestration & BI:** Apache Airflow (`2.9.3`), Streamlit, Plotly, Docker
+* **Orchestration & BI:** Apache Airflow (`2.9.3`), Apache Superset (`6.1.0`), Redis (`7`), `duckdb-engine`, Docker
 
 ### Project Structure
 * `.github/pull_request_template.md`: Template for standardizing PR descriptions.
@@ -50,7 +50,7 @@ This repository is a **Python Data Engineering Monorepo** managed by the **Pants
   * `batch_layer/`: Modular SQL transformations, OLTP-enriched dimensional marts, and freshness monitors with dbt and DuckDB.
     * `Dockerfile`, `docker-compose.yml`, `Makefile`, `BUILD`: Lockfile-pinned container runner (`make dbt-build`, `make query`, `projects/ecommerce/batch_layer:dbt_image`).
     * `macros/`: Centralized `get_stream_path` SQL macro for dynamic Parquet pathing.
-    * `models/`: Staging views with column integrity tests, analytical & OLTP-enriched marts (`cumulative_users`, `daily_category_sales`, `daily_url_conversion`, `customer_segment_spending`, `brand_category_performance`), and freshness monitors (`last_ingest`).
+    * `models/`: Staging views with column integrity tests, analytical & OLTP-enriched marts (`cumulative_users`, `daily_category_sales`, `daily_url_conversion`, `customer_segment_spending`, `brand_category_performance`), and freshness/quality monitors (`last_ingest`, `gx_quality_checks`, `pydeequ_quality_checks`).
   * `quality/`: Batch and warehouse data quality gates using Great Expectations.
     * `validate_ecommerce.py`: Validates raw events and DuckDB Gold marts (`projects/ecommerce/quality:validate`).
     * `BUILD`: Pants build definition (`lib`, `validate`).
@@ -59,9 +59,9 @@ This repository is a **Python Data Engineering Monorepo** managed by the **Pants
     * `export_to_gcp.py`: Uploads Parquet artifacts to GCS and loads Gold DuckDB marts to BigQuery (`projects/ecommerce/cloud_sync:export`).
     * `BUILD`: Pants build definition (`lib`, `export`).
   * `orchestration/`: Containerized workflow orchestration and executive business intelligence.
-    * `Dockerfile`, `docker-compose.yml`, `Makefile`, `BUILD`: Lockfile-pinned Airflow (LocalExecutor + Postgres 16) and Streamlit services (`make up`, `make down`, `make status`).
-    * `dags/ecommerce_pipeline.py` & `dags/BUILD`: Airflow DAG using `DeltaStreamSensor` to coordinate OLTP sync, dbt staging/marts/tests, Great Expectations validation, and optional GCP sync.
-    * `viz/`: Interactive real-time Streamlit dashboard (`app.py`, `Dockerfile`, `BUILD`) with DuckDB analytics, OLTP enrichment views, and quality report monitors.
+    * `Dockerfile`, `docker-compose.yml`, `Makefile`, `BUILD`: Lockfile-pinned Airflow (LocalExecutor + Postgres 16), Redis 7, and Apache Superset 6.1.0 services (`make up`, `make down`, `make status`).
+    * `dags/ecommerce_pipeline.py` & `dags/BUILD`: Airflow DAG using `DeltaStreamSensor` to coordinate OLTP sync, dbt staging/marts/tests, Great Expectations validation, dbt monitor views, and optional GCP sync.
+    * `superset/`: Apache Superset configuration (`superset_config.py`), bootstrap (`bootstrap.sh`), Dashboards-as-Code YAML bundle (`assets/`), asset validator/packager (`package_assets.py`), lockfile-pinned `Dockerfile`, and `BUILD` (`package_assets`, `superset_image`).
 * `.venv`: A root-level symlink pointing to the current active Pants-generated virtual environment.
 
 ---
