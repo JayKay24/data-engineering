@@ -44,9 +44,35 @@ echo "Packaging and importing Dashboards-as-Code YAML assets..."
 /app/.venv/bin/python /app/superset_config/package_assets.py \
     --assets-dir /app/superset_config/assets \
     --output /tmp/ecommerce_superset_assets.zip
-superset import-dashboards \
-    -p /tmp/ecommerce_superset_assets.zip \
-    -u "${SUPERSET_ADMIN_USER:-admin}"
+/app/.venv/bin/python - <<'PY'
+import os
+from zipfile import ZipFile
+import yaml
+
+from superset.app import create_app
+
+app = create_app()
+with app.app_context():
+    from superset.commands.importers.v1.assets import ImportAssetsCommand
+    from superset.commands.importers.v1.utils import (
+        METADATA_FILE_NAME,
+        get_contents_from_bundle,
+    )
+    from superset.extensions import security_manager
+    from superset.utils.core import override_user
+
+    with ZipFile("/tmp/ecommerce_superset_assets.zip") as bundle:
+        contents = get_contents_from_bundle(bundle)
+    if METADATA_FILE_NAME in contents:
+        meta = yaml.safe_load(contents[METADATA_FILE_NAME]) or {}
+        meta["type"] = "assets"
+        contents[METADATA_FILE_NAME] = yaml.safe_dump(meta)
+    admin_user = os.environ.get("SUPERSET_ADMIN_USER", "admin")
+    admin = security_manager.find_user(username=admin_user)
+    with override_user(admin):
+        ImportAssetsCommand(contents, sparse=False).run()
+print("Successfully imported and synchronized all Superset assets (overwrite=True).")
+PY
 rm -f /tmp/ecommerce_superset_assets.zip
 
 echo "Starting Apache Superset server on :8088..."
