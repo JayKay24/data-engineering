@@ -3,7 +3,16 @@ description: null
 certified_by: null
 certification_details: null
 viz_type: echarts_timeseries_bar
-params: '{"viz_type": "echarts_timeseries_bar", "x_axis": "url", "metrics": ["avg_conversion_rate"], "adhoc_filters": [], "row_limit": 50, "color_scheme": "supersetColors", "y_axis_format": ".2%", "extra_form_data": {}}'
+params:
+  viz_type: echarts_timeseries_bar
+  x_axis: url
+  metrics:
+  - avg_conversion_rate
+  adhoc_filters: []
+  row_limit: 50
+  color_scheme: supersetColors
+  y_axis_format: .2%
+  extra_form_data: {}
 query_context: null
 cache_timeout: null
 uuid: 33333333-3333-4333-8333-333333333306

@@ -1,7 +1,6 @@
 """Validates and packages Superset Dashboards-as-Code YAML assets into an import ZIP."""
 
 import argparse
-import json
 import os
 import sys
 import zipfile
@@ -59,11 +58,9 @@ def validate_assets(assets_dir: str) -> list[str]:
             if rel_root.startswith("databases"):
                 if "uuid" in data:
                     db_uuids.add(data["uuid"])
-                if isinstance(data.get("extra"), str):
-                    try:
-                        json.loads(data["extra"])
-                    except json.JSONDecodeError as exc:
-                        errors.append(f"{fpath}: invalid JSON in 'extra': {exc}")
+                extra = data.get("extra")
+                if extra is not None and not isinstance(extra, dict):
+                    errors.append(f"{fpath}: 'extra' must be a YAML mapping")
             elif rel_root.startswith("datasets"):
                 if "uuid" in data:
                     dataset_uuids.add(data["uuid"])
@@ -86,11 +83,9 @@ def validate_assets(assets_dir: str) -> list[str]:
                     errors.append(
                         f"{fpath}: unknown dataset_uuid '{data.get('dataset_uuid')}'"
                     )
-                if isinstance(data.get("params"), str):
-                    try:
-                        json.loads(data["params"])
-                    except json.JSONDecodeError as exc:
-                        errors.append(f"{fpath}: invalid JSON in 'params': {exc}")
+                params = data.get("params")
+                if params is not None and not isinstance(params, dict):
+                    errors.append(f"{fpath}: 'params' must be a YAML mapping")
 
     for root, _, files in os.walk(assets_dir):
         rel_root = os.path.relpath(root, assets_dir)
