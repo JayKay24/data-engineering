@@ -8,8 +8,7 @@ params:
   x_axis: category
   metrics:
   - total_revenue
-  groupby:
-  - category
+  groupby: []
   adhoc_filters: []
   row_limit: 50
   color_scheme: supersetColors
