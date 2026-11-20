@@ -1,3 +1,5 @@
+"""Kafka Avro producer for streaming sample e-commerce events."""
+
 import argparse
 import json
 import os
@@ -19,6 +21,8 @@ logger = get_logger("EcommerceAvroProducer")
 
 
 class EcommerceEvent(TypedDict):
+    """Typed schema representation for a single e-commerce activity event."""
+
     user_id: str
     url: str
     event_type: str
@@ -33,7 +37,16 @@ class EcommerceEvent(TypedDict):
 def produce_events(
     config_path: str, schema_path: str, input_path: str, delay_seconds: float = 0.5
 ) -> None:
-    """Streams e-commerce events from JSON dataset to Kafka with Avro serialization."""
+    """Stream e-commerce events from JSON lines to Kafka with Avro serialization.
+
+    Args:
+        config_path: Path to the YAML configuration file containing Kafka and
+            Schema Registry defaults.
+        schema_path: Path to the ``.avsc`` Avro schema file.
+        input_path: Path to the JSON-lines input dataset.
+        delay_seconds: Optional sleep interval in seconds between produced
+            messages.
+    """
     with open(config_path, "r", encoding="utf-8") as f:
         config = yaml.safe_load(f)
 
@@ -69,11 +82,13 @@ def produce_events(
                 value=serialized,
                 callback=lambda err, msg: kafka_delivery_report(err, msg, logger),
             )
+            # Non-blocking poll(0) services librdkafka delivery callbacks without stalling the loop.
             producer.poll(0)
             count += 1
             if delay_seconds > 0:
                 time.sleep(delay_seconds)
 
+    # Block until all buffered messages in librdkafka are delivered before exiting.
     producer.flush()
     logger.info("Successfully produced %d e-commerce events to '%s'.", count, topic)
 
