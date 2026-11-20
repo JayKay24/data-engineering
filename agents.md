@@ -25,6 +25,7 @@ This repository is a **Python Data Engineering Monorepo** managed by the **Pants
 * `.github/pull_request_template.md`: Template for standardizing PR descriptions.
 * `.github/workflows/wiki-sync.yml`: CI workflow validating `docs/wiki/` on PRs and mirroring changes to `data-engineering.wiki.git` on pushes to `develop` and `master`.
 * `.pre-commit-config.yaml`: Pre-commit hooks configuration to run `./pants fmt` and `./pants lint` locally.
+* `pyproject.toml`: Ruff linting rules enforcing Google-style docstrings (`D` / `D417`) via `./pants lint ::`.
 * `3rdparty/`: Dependency management (`requirements.txt`, Pants `user_reqs.lock`, `extract_lock_constraints.py` for lockfile-pinned Docker builds, and `BUILD`).
 * `docs/`: Version-controlled GitHub Wiki source (`docs/wiki/*.md`), zero-dependency link/anchor/Mermaid validator (`docs/validate_wiki.py`), and Pants `BUILD` (`docs:validate_wiki`).
 * `projects/common/`: Shared monorepo utilities.
