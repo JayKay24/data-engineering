@@ -1,0 +1,41 @@
+table_name: cumulative_users
+main_dttm_col: cohort_date
+description: Historical cumulative user growth cohorts
+default_endpoint: null
+offset: 0
+cache_timeout: null
+schema: main
+sql: null
+params: null
+template_params: null
+filter_select_enabled: true
+fetch_values_predicate: null
+extra: null
+uuid: 22222222-2222-4222-8222-222222222203
+metrics:
+  - metric_name: max_cumulative_users
+    verbose_name: Cumulative Users
+    expression: COALESCE(MAX(cumulative_users), 0)
+    metric_type: max
+  - metric_name: total_new_users
+    verbose_name: New Users
+    expression: COALESCE(SUM(new_users), 0)
+    metric_type: sum
+columns:
+  - column_name: cohort_date
+    is_dttm: true
+    type: DATE
+    groupby: true
+    filterable: true
+  - column_name: new_users
+    is_dttm: false
+    type: BIGINT
+    groupby: false
+    filterable: true
+  - column_name: cumulative_users
+    is_dttm: false
+    type: BIGINT
+    groupby: false
+    filterable: true
+version: 1.0.0
+database_uuid: 11111111-1111-4111-8111-111111111111

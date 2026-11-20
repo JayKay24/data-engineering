@@ -1,0 +1,21 @@
+slice_name: Cumulative User Growth
+description: null
+certified_by: null
+certification_details: null
+viz_type: echarts_timeseries_line
+params:
+  viz_type: echarts_timeseries_line
+  x_axis: cohort_date
+  metrics:
+  - max_cumulative_users
+  adhoc_filters: []
+  row_limit: 1000
+  color_scheme: supersetColors
+  show_legend: true
+  markerEnabled: true
+  extra_form_data: {}
+query_context: null
+cache_timeout: null
+uuid: 33333333-3333-4333-8333-333333333307
+version: 1.0.0
+dataset_uuid: 22222222-2222-4222-8222-222222222203

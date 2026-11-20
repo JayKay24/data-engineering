@@ -1,0 +1,52 @@
+table_name: pydeequ_quality_checks
+main_dttm_col: generated_at
+description: PyDeequ distributed Spark data quality verification results
+default_endpoint: null
+offset: 0
+cache_timeout: null
+schema: main
+sql: null
+params: null
+template_params: null
+filter_select_enabled: true
+fetch_values_predicate: null
+extra: null
+uuid: 22222222-2222-4222-8222-222222222208
+metrics:
+  - metric_name: count
+    verbose_name: COUNT(*)
+    expression: COUNT(*)
+    metric_type: count
+columns:
+  - column_name: engine
+    is_dttm: false
+    type: VARCHAR
+    groupby: true
+    filterable: true
+  - column_name: generated_at
+    is_dttm: true
+    type: TIMESTAMP
+    groupby: true
+    filterable: true
+  - column_name: row_count
+    is_dttm: false
+    type: BIGINT
+    groupby: false
+    filterable: true
+  - column_name: check_name
+    is_dttm: false
+    type: VARCHAR
+    groupby: true
+    filterable: true
+  - column_name: constraint_name
+    is_dttm: false
+    type: VARCHAR
+    groupby: true
+    filterable: true
+  - column_name: constraint_status
+    is_dttm: false
+    type: VARCHAR
+    groupby: true
+    filterable: true
+version: 1.0.0
+database_uuid: 11111111-1111-4111-8111-111111111111

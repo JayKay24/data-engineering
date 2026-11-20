@@ -13,6 +13,7 @@ from typing import Any
 
 import great_expectations as gx
 import pandas as pd
+import pyarrow  # noqa: F401 - ensures pyarrow engine is registered for Parquet export
 
 from projects.common.logger import get_logger
 from projects.ecommerce.duckdb_utils import connect_duckdb_readonly
@@ -260,10 +261,54 @@ def validate_ecommerce_pipeline(
     }
 
     # Resolve abspath first so relative filenames without a directory still create cleanly.
-    os.makedirs(os.path.dirname(os.path.abspath(output_report_path)), exist_ok=True)
+    report_dir = os.path.dirname(os.path.abspath(output_report_path))
+    os.makedirs(report_dir, exist_ok=True)
     with open(output_report_path, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2)
     logger.info("Saved Great Expectations report to %s", output_report_path)
+
+    # Emit a flat Parquet check table alongside JSON so dbt/DuckDB and Superset can query it directly.
+    flat_gx_rows = [
+        {
+            "engine": "great_expectations",
+            "generated_at": report["generated_at"],
+            "overall_success": bool(overall_success),
+            "suite_name": suite["suite_name"],
+            "suite_success": bool(suite["success"]),
+            "expectation_type": check["expectation_type"],
+            "column_name": check["column"],
+            "check_success": bool(check["success"]),
+            "unexpected_count": int(check["unexpected_count"]),
+        }
+        for suite in suites_report
+        for check in suite["checks"]
+    ]
+    gx_parquet_path = os.path.join(report_dir, "gx_checks.parquet")
+    pd.DataFrame(flat_gx_rows).to_parquet(
+        gx_parquet_path, index=False, engine="pyarrow"
+    )
+    logger.info("Saved Great Expectations Parquet checks to %s", gx_parquet_path)
+
+    # Ensure pydeequ_checks.parquet exists with valid schema so dbt monitor views never fail on streaming-only runs.
+    output_prefix = os.path.dirname(report_dir)
+    pydeequ_dir = os.path.join(output_prefix, "pydeequ_metrics")
+    pydeequ_parquet_path = os.path.join(pydeequ_dir, "pydeequ_checks.parquet")
+    if not os.path.exists(pydeequ_parquet_path):
+        os.makedirs(pydeequ_dir, exist_ok=True)
+        empty_pydeequ_df = pd.DataFrame(
+            {
+                "engine": pd.Series(dtype="string"),
+                "generated_at": pd.Series(dtype="string"),
+                "row_count": pd.Series(dtype="int64"),
+                "overall_status": pd.Series(dtype="string"),
+                "check_name": pd.Series(dtype="string"),
+                "check_level": pd.Series(dtype="string"),
+                "constraint": pd.Series(dtype="string"),
+                "constraint_status": pd.Series(dtype="string"),
+                "constraint_message": pd.Series(dtype="string"),
+            }
+        )
+        empty_pydeequ_df.to_parquet(pydeequ_parquet_path, index=False, engine="pyarrow")
 
     return overall_success
 

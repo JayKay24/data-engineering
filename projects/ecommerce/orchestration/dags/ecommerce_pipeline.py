@@ -148,6 +148,15 @@ with DAG(
         ),
     )
 
+    dbt_build_monitors = BashOperator(
+        task_id="dbt_build_monitors",
+        bash_command=(
+            f"{_PIPELINE_DBT} && "
+            "cd ${DBT_PROJ_DIR:-/opt/project/batch_layer} && "
+            "$PIPELINE_DBT build -s 'path:models/monitors/**'"
+        ),
+    )
+
     sync_cloud_warehouse = BashOperator(
         task_id="sync_cloud_warehouse",
         bash_command=(
@@ -163,5 +172,6 @@ with DAG(
         >> dbt_build_marts
         >> dbt_test_all
         >> run_great_expectations
+        >> dbt_build_monitors
         >> sync_cloud_warehouse
     )

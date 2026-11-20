@@ -147,6 +147,8 @@ Every staging view reads live Parquet files via `{{ get_stream_path('<table_name
 | `customer_segment_spending`  | `product_sales` $\bowtie$ `dim_customers` | `user_id`, `segment`, `region`, `total_revenue`, `total_units`, `purchase_windows` |
 | `brand_category_performance` | `product_sales` $\bowtie$ `dim_products`  | `brand`, `category`, `total_revenue`, `total_units`, `avg_unit_price`              |
 
-### 6.3 Freshness Monitor (`models/monitors/` — `materialized='view'`)
+### 6.3 Freshness & Data Quality Monitors (`models/monitors/` — `materialized='view'`)
 
 - **`last_ingest`**: Computes `latest_stream_window` (`max(window_end)` from `url_counts`), `batch_processed_at` (`current_timestamp`), and `pipeline_latency` (`age(current_timestamp, max(window_end))`).
+- **`gx_quality_checks`**: Monitor view over `quality_reports/gx_checks.parquet` exposing `engine`, `generated_at`, `overall_success`, `suite_name`, `suite_success`, `expectation_type`, `column_name`, `check_success`, and `unexpected_count`.
+- **`pydeequ_quality_checks`**: Monitor view over `pydeequ_metrics/pydeequ_checks.parquet` exposing `engine`, `generated_at`, `row_count`, `overall_status`, `check_name`, `check_level`, `constraint_name`, `constraint_status`, and `constraint_message`.

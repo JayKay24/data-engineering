@@ -14,8 +14,8 @@
   <img src="https://img.shields.io/badge/dbt-1.x-FF694B?style=for-the-badge&logo=dbt&logoColor=white" alt="dbt" />
   <img src="https://img.shields.io/badge/DuckDB-1.5-FFF000?style=for-the-badge&logo=duckdb&logoColor=black" alt="DuckDB" />
   <img src="https://img.shields.io/badge/Apache_Airflow-2.9-017CEE?style=for-the-badge&logo=apacheairflow&logoColor=white" alt="Apache Airflow" />
-  <img src="https://img.shields.io/badge/Streamlit-1.x-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white" alt="Streamlit" />
-  <img src="https://img.shields.io/badge/Plotly-7.x-3F4F75?style=for-the-badge&logo=plotly&logoColor=white" alt="Plotly" />
+  <img src="https://img.shields.io/badge/Apache_Superset-6.1-20A7C9?style=for-the-badge&logo=apachesuperset&logoColor=white" alt="Apache Superset" />
+  <img src="https://img.shields.io/badge/Redis-7-DC382D?style=for-the-badge&logo=redis&logoColor=white" alt="Redis" />
   <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker" />
   <img src="https://img.shields.io/badge/Ruff-D7FF64?style=for-the-badge&logo=ruff&logoColor=black" alt="Ruff" />
 </p>
@@ -68,7 +68,7 @@ data-engineering/
         ├── batch_layer/               # dbt + DuckDB SQL staging, OLTP-enriched marts & monitors
         ├── quality/                   # Great Expectations batch & Gold warehouse validation suites
         ├── cloud_sync/                # Optional Google Cloud Storage & BigQuery lakehouse export
-        └── orchestration/             # Apache Airflow DAG + Streamlit/Plotly executive dashboard
+        └── orchestration/             # Apache Airflow DAG + Apache Superset BI (Dashboards-as-Code) & Redis
 ```
 
 ---
@@ -77,7 +77,7 @@ data-engineering/
 
 *   **[GitHub Wiki](https://github.com/JayKay24/data-engineering/wiki)** — Comprehensive engineering Wiki (`docs/wiki/`), automatically validated on PRs and synced to GitHub Wiki via `.github/workflows/wiki-sync.yml`.
 *   [projects/common/](projects/common/) — Shared monorepo utilities including unified structured logging, Kafka/Avro/ABRiS helpers, and the shared Kafka/Schema Registry Docker Compose stack.
-*   [projects/ecommerce/](projects/ecommerce/) — End-to-end E-Commerce Lambda Architecture combining Kafka/Avro streaming, PySpark + Delta Lake aggregations, PyDeequ Spark verification, PostgreSQL OLTP dimension sync, dbt + DuckDB analytical marts, Great Expectations quality gates, optional GCP export, and containerized Airflow + Streamlit orchestration (see [projects/ecommerce/README.md](projects/ecommerce/README.md)).
+*   [projects/ecommerce/](projects/ecommerce/) — End-to-end E-Commerce Lambda Architecture combining Kafka/Avro streaming, PySpark + Delta Lake aggregations, PyDeequ Spark verification, PostgreSQL OLTP dimension sync, dbt + DuckDB analytical marts, Great Expectations quality gates, optional GCP export, and containerized Airflow + Apache Superset orchestration (see [projects/ecommerce/README.md](projects/ecommerce/README.md)).
 
 ---
 

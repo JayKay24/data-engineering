@@ -1,0 +1,51 @@
+table_name: daily_url_conversion
+main_dttm_col: conversion_date
+description: Daily consolidated URL views, purchases, and conversion rates
+default_endpoint: null
+offset: 0
+cache_timeout: null
+schema: main
+sql: null
+params: null
+template_params: null
+filter_select_enabled: true
+fetch_values_predicate: null
+extra: null
+uuid: 22222222-2222-4222-8222-222222222202
+metrics:
+  - metric_name: avg_conversion_rate
+    verbose_name: Avg Conversion Rate
+    expression: COALESCE(AVG(avg_conversion_rate), 0)
+    metric_type: avg
+  - metric_name: total_purchases
+    verbose_name: Total Purchases
+    expression: COALESCE(SUM(total_purchases), 0)
+    metric_type: sum
+columns:
+  - column_name: conversion_date
+    is_dttm: true
+    type: DATE
+    groupby: true
+    filterable: true
+  - column_name: url
+    is_dttm: false
+    type: VARCHAR
+    groupby: true
+    filterable: true
+  - column_name: total_views
+    is_dttm: false
+    type: BIGINT
+    groupby: false
+    filterable: true
+  - column_name: total_purchases
+    is_dttm: false
+    type: BIGINT
+    groupby: false
+    filterable: true
+  - column_name: avg_conversion_rate
+    is_dttm: false
+    type: DOUBLE
+    groupby: false
+    filterable: true
+version: 1.0.0
+database_uuid: 11111111-1111-4111-8111-111111111111

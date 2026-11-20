@@ -1,0 +1,19 @@
+slice_name: Cumulative Users
+description: null
+certified_by: null
+certification_details: null
+viz_type: big_number_total
+params:
+  viz_type: big_number_total
+  metric: max_cumulative_users
+  adhoc_filters: []
+  header_font_size: 0.4
+  subheader_font_size: 0.15
+  y_axis_format: ',d'
+  time_format: smart_date
+  extra_form_data: {}
+query_context: null
+cache_timeout: null
+uuid: 33333333-3333-4333-8333-333333333303
+version: 1.0.0
+dataset_uuid: 22222222-2222-4222-8222-222222222203
