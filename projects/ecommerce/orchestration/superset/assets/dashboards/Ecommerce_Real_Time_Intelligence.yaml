@@ -1,0 +1,273 @@
+dashboard_title: E-Commerce Real-Time Intelligence
+description: Unified Lambda Architecture analytics, OLTP enrichment, and data quality health
+css: ''
+slug: ecommerce-realtime-intelligence
+certified_by: null
+certification_details: null
+published: true
+uuid: 44444444-4444-4444-8444-444444444444
+position:
+  DASHBOARD_VERSION_TYPE: v2
+  ROOT_ID:
+    id: ROOT_ID
+    type: ROOT
+    children:
+      - GRID_ID
+  GRID_ID:
+    id: GRID_ID
+    type: GRID
+    parents:
+      - ROOT_ID
+    children:
+      - ROW-KPI
+      - ROW-SALES-CONV
+      - ROW-GROWTH
+      - ROW-OLTP
+      - ROW-FRESHNESS
+      - ROW-QUALITY
+  HEADER_ID:
+    id: HEADER_ID
+    type: HEADER
+    meta:
+      text: E-Commerce Real-Time Intelligence
+  ROW-KPI:
+    id: ROW-KPI
+    type: ROW
+    parents:
+      - ROOT_ID
+      - GRID_ID
+    children:
+      - CHART-REV
+      - CHART-UNITS
+      - CHART-USERS
+      - CHART-CONV
+    meta:
+      background: BACKGROUND_TRANSPARENT
+  ROW-SALES-CONV:
+    id: ROW-SALES-CONV
+    type: ROW
+    parents:
+      - ROOT_ID
+      - GRID_ID
+    children:
+      - CHART-CAT-BAR
+      - CHART-URL-CONV
+    meta:
+      background: BACKGROUND_TRANSPARENT
+  ROW-GROWTH:
+    id: ROW-GROWTH
+    type: ROW
+    parents:
+      - ROOT_ID
+      - GRID_ID
+    children:
+      - CHART-USER-GROWTH
+    meta:
+      background: BACKGROUND_TRANSPARENT
+  ROW-OLTP:
+    id: ROW-OLTP
+    type: ROW
+    parents:
+      - ROOT_ID
+      - GRID_ID
+    children:
+      - CHART-SEG-SPEND
+      - CHART-BRAND-PERF
+    meta:
+      background: BACKGROUND_TRANSPARENT
+  ROW-FRESHNESS:
+    id: ROW-FRESHNESS
+    type: ROW
+    parents:
+      - ROOT_ID
+      - GRID_ID
+    children:
+      - CHART-FRESHNESS
+    meta:
+      background: BACKGROUND_TRANSPARENT
+  ROW-QUALITY:
+    id: ROW-QUALITY
+    type: ROW
+    parents:
+      - ROOT_ID
+      - GRID_ID
+    children:
+      - CHART-GX-CHECKS
+      - CHART-DEEQU-CHECKS
+    meta:
+      background: BACKGROUND_TRANSPARENT
+  CHART-REV:
+    id: CHART-REV
+    type: CHART
+    parents:
+      - ROOT_ID
+      - GRID_ID
+      - ROW-KPI
+    children: []
+    meta:
+      width: 3
+      height: 18
+      chartId: 1
+      sliceName: Total Revenue
+      uuid: 33333333-3333-4333-8333-333333333301
+  CHART-UNITS:
+    id: CHART-UNITS
+    type: CHART
+    parents:
+      - ROOT_ID
+      - GRID_ID
+      - ROW-KPI
+    children: []
+    meta:
+      width: 3
+      height: 18
+      chartId: 2
+      sliceName: Total Units Sold
+      uuid: 33333333-3333-4333-8333-333333333302
+  CHART-USERS:
+    id: CHART-USERS
+    type: CHART
+    parents:
+      - ROOT_ID
+      - GRID_ID
+      - ROW-KPI
+    children: []
+    meta:
+      width: 3
+      height: 18
+      chartId: 3
+      sliceName: Cumulative Users
+      uuid: 33333333-3333-4333-8333-333333333303
+  CHART-CONV:
+    id: CHART-CONV
+    type: CHART
+    parents:
+      - ROOT_ID
+      - GRID_ID
+      - ROW-KPI
+    children: []
+    meta:
+      width: 3
+      height: 18
+      chartId: 4
+      sliceName: Avg Conversion Rate
+      uuid: 33333333-3333-4333-8333-333333333304
+  CHART-CAT-BAR:
+    id: CHART-CAT-BAR
+    type: CHART
+    parents:
+      - ROOT_ID
+      - GRID_ID
+      - ROW-SALES-CONV
+    children: []
+    meta:
+      width: 6
+      height: 45
+      chartId: 5
+      sliceName: Revenue by Product Category
+      uuid: 33333333-3333-4333-8333-333333333305
+  CHART-URL-CONV:
+    id: CHART-URL-CONV
+    type: CHART
+    parents:
+      - ROOT_ID
+      - GRID_ID
+      - ROW-SALES-CONV
+    children: []
+    meta:
+      width: 6
+      height: 45
+      chartId: 6
+      sliceName: Conversion Rate by Page URL
+      uuid: 33333333-3333-4333-8333-333333333306
+  CHART-USER-GROWTH:
+    id: CHART-USER-GROWTH
+    type: CHART
+    parents:
+      - ROOT_ID
+      - GRID_ID
+      - ROW-GROWTH
+    children: []
+    meta:
+      width: 12
+      height: 42
+      chartId: 7
+      sliceName: Cumulative User Growth
+      uuid: 33333333-3333-4333-8333-333333333307
+  CHART-SEG-SPEND:
+    id: CHART-SEG-SPEND
+    type: CHART
+    parents:
+      - ROOT_ID
+      - GRID_ID
+      - ROW-OLTP
+    children: []
+    meta:
+      width: 6
+      height: 45
+      chartId: 8
+      sliceName: OLTP-Enriched Segment Spending
+      uuid: 33333333-3333-4333-8333-333333333308
+  CHART-BRAND-PERF:
+    id: CHART-BRAND-PERF
+    type: CHART
+    parents:
+      - ROOT_ID
+      - GRID_ID
+      - ROW-OLTP
+    children: []
+    meta:
+      width: 6
+      height: 45
+      chartId: 9
+      sliceName: OLTP-Enriched Brand Performance
+      uuid: 33333333-3333-4333-8333-333333333309
+  CHART-FRESHNESS:
+    id: CHART-FRESHNESS
+    type: CHART
+    parents:
+      - ROOT_ID
+      - GRID_ID
+      - ROW-FRESHNESS
+    children: []
+    meta:
+      width: 12
+      height: 22
+      chartId: 10
+      sliceName: Pipeline Freshness Monitor
+      uuid: 33333333-3333-4333-8333-333333333310
+  CHART-GX-CHECKS:
+    id: CHART-GX-CHECKS
+    type: CHART
+    parents:
+      - ROOT_ID
+      - GRID_ID
+      - ROW-QUALITY
+    children: []
+    meta:
+      width: 6
+      height: 45
+      chartId: 11
+      sliceName: Great Expectations Quality Checks
+      uuid: 33333333-3333-4333-8333-333333333311
+  CHART-DEEQU-CHECKS:
+    id: CHART-DEEQU-CHECKS
+    type: CHART
+    parents:
+      - ROOT_ID
+      - GRID_ID
+      - ROW-QUALITY
+    children: []
+    meta:
+      width: 6
+      height: 45
+      chartId: 12
+      sliceName: PyDeequ Spark Quality Checks
+      uuid: 33333333-3333-4333-8333-333333333312
+metadata:
+  timed_refresh_immune_slices: []
+  expanded_slices: {}
+  refresh_frequency: 30
+  color_scheme: supersetColors
+  cross_filters_enabled: true
+version: 1.0.0

@@ -1,3 +1,5 @@
+"""PySpark Structured Streaming transformations for e-commerce KPI aggregations."""
+
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.functions import col, date_format, to_timestamp, window
@@ -13,7 +15,20 @@ def build_parsed_stream(
     timestamp_field: str = "event_time",
     watermark_delay: str = "10 seconds",
 ) -> DataFrame:
-    """Deserializes Avro Kafka payloads via ABRiS, casts timestamps, and applies watermark."""
+    """Deserialize Avro Kafka payloads via ABRiS, cast timestamps, and watermark.
+
+    Args:
+        spark: Active SparkSession providing the Py4J JVM gateway.
+        df_raw: Raw Kafka source DataFrame containing binary ``value`` payloads.
+        topic: Kafka topic name used for Schema Registry subject lookup.
+        schema_registry_url: Base URL of the Confluent Schema Registry.
+        timestamp_field: Name of the event timestamp column to cast and
+            watermark.
+        watermark_delay: Spark watermark delay threshold (e.g., ``"10 seconds"``).
+
+    Returns:
+        Parsed and watermarked Spark DataFrame with flattened Avro columns.
+    """
     df_deserialized = df_raw.select(
         get_abris_from_avro_column(
             spark,
@@ -23,6 +38,7 @@ def build_parsed_stream(
         ).alias("data")
     ).select("data.*")
 
+    # Spark requires a TimestampType column (not ISO string) before applying event-time watermarking.
     return df_deserialized.withColumn(
         timestamp_field, to_timestamp(col(timestamp_field))
     ).withWatermark(timestamp_field, watermark_delay)
@@ -34,7 +50,18 @@ def aggregate_url_counts(
     window_duration: str = "10 seconds",
     slide_duration: str = "5 seconds",
 ) -> DataFrame:
-    """Calculates sliding window event counts grouped by URL and event_type."""
+    """Calculate sliding-window event counts grouped by URL and event type.
+
+    Args:
+        df: Parsed and watermarked e-commerce event DataFrame.
+        timestamp_field: Name of the event timestamp column for windowing.
+        window_duration: Tumbling or sliding window length (e.g., ``"10 seconds"``).
+        slide_duration: Window slide interval (e.g., ``"5 seconds"``).
+
+    Returns:
+        DataFrame with ``window_start``, ``window_end``, ``url``, ``event_type``,
+        and ``count`` columns.
+    """
     return (
         df.groupBy(
             window(col(timestamp_field), window_duration, slide_duration),
@@ -58,7 +85,18 @@ def aggregate_user_activity(
     window_duration: str = "10 seconds",
     slide_duration: str = "5 seconds",
 ) -> DataFrame:
-    """Calculates sliding window event counts grouped by user_id."""
+    """Calculate sliding-window event counts grouped by ``user_id``.
+
+    Args:
+        df: Parsed and watermarked e-commerce event DataFrame.
+        timestamp_field: Name of the event timestamp column for windowing.
+        window_duration: Sliding window length (e.g., ``"10 seconds"``).
+        slide_duration: Window slide interval (e.g., ``"5 seconds"``).
+
+    Returns:
+        DataFrame with ``window_start``, ``window_end``, ``user_id``, and
+        ``total_events`` columns.
+    """
     return (
         df.groupBy(
             window(col(timestamp_field), window_duration, slide_duration),
@@ -80,13 +118,25 @@ def aggregate_url_conversion(
     window_duration: str = "10 seconds",
     slide_duration: str = "5 seconds",
 ) -> DataFrame:
-    """Calculates sliding window conversion rate (purchases / views) per URL."""
+    """Calculate sliding-window conversion rate (purchases / views) per URL.
+
+    Args:
+        df: Parsed and watermarked e-commerce event DataFrame.
+        timestamp_field: Name of the event timestamp column for windowing.
+        window_duration: Sliding window length (e.g., ``"10 seconds"``).
+        slide_duration: Window slide interval (e.g., ``"5 seconds"``).
+
+    Returns:
+        DataFrame with ``window_start``, ``window_end``, ``url``, ``view_count``,
+        ``purchase_count``, and ``conversion_rate`` columns.
+    """
     counts = df.groupBy(
         window(col(timestamp_field), window_duration, slide_duration),
         col("url"),
         col("event_type"),
     ).count()
 
+    # Explicitly enumerate pivot values because Structured Streaming cannot infer dynamic pivot columns.
     wide = (
         counts.groupBy("window", "url")
         .pivot("event_type", ["view", "purchase"])
@@ -113,7 +163,18 @@ def aggregate_category_sales(
     window_duration: str = "10 seconds",
     slide_duration: str = "5 seconds",
 ) -> DataFrame:
-    """Aggregates revenue and unit volume per product category from purchases."""
+    """Aggregate purchase revenue and unit volume per product category.
+
+    Args:
+        df: Parsed and watermarked e-commerce event DataFrame.
+        timestamp_field: Name of the event timestamp column for windowing.
+        window_duration: Sliding window length (e.g., ``"10 seconds"``).
+        slide_duration: Window slide interval (e.g., ``"5 seconds"``).
+
+    Returns:
+        DataFrame with ``window_start``, ``window_end``, ``category``,
+        ``revenue``, and ``units`` columns.
+    """
     purchases = df.filter(col("event_type") == "purchase")
     return (
         purchases.groupBy(
@@ -140,13 +201,25 @@ def aggregate_cart_metrics(
     window_duration: str = "10 seconds",
     slide_duration: str = "5 seconds",
 ) -> DataFrame:
-    """Calculates add-to-cart rate and cart abandonment rate by URL."""
+    """Calculate add-to-cart rate and cart abandonment rate by URL.
+
+    Args:
+        df: Parsed and watermarked e-commerce event DataFrame.
+        timestamp_field: Name of the event timestamp column for windowing.
+        window_duration: Sliding window length (e.g., ``"10 seconds"``).
+        slide_duration: Window slide interval (e.g., ``"5 seconds"``).
+
+    Returns:
+        DataFrame with view, add-to-cart, and purchase counts alongside
+        ``add_to_cart_rate`` and ``cart_abandonment`` ratios.
+    """
     counts = df.groupBy(
         window(col(timestamp_field), window_duration, slide_duration),
         col("url"),
         col("event_type"),
     ).count()
 
+    # Enumerate all funnel stages explicitly so every micro-batch outputs a stable schema.
     wide = (
         counts.groupBy("window", "url")
         .pivot("event_type", ["view", "add_to_cart", "purchase"])
@@ -186,12 +259,24 @@ def aggregate_session_funnels(
     timestamp_field: str = "event_time",
     session_gap_seconds: int = 900,
 ) -> DataFrame:
-    """Evaluates session funnel progression (view -> add_to_cart -> purchase) per user session."""
+    """Evaluate session funnel progression (view -> add_to_cart -> purchase).
+
+    Args:
+        df: Parsed and watermarked e-commerce event DataFrame.
+        timestamp_field: Name of the event timestamp column for sessionization.
+        session_gap_seconds: Inactivity gap in seconds defining a session
+            boundary.
+
+    Returns:
+        DataFrame with ``session_start``, ``session_end``, ``user_id``, and
+        boolean flags ``has_view``, ``has_add``, and ``has_purchase``.
+    """
     return (
         df.groupBy(
             F.session_window(col(timestamp_field), f"{session_gap_seconds} seconds"),
             col("user_id"),
         )
+        # Collect distinct event types per session so stage detection is order-independent.
         .agg(F.collect_set(col("event_type")).alias("events"))
         .select(
             date_format(col("session_window.start"), "yyyy-MM-dd HH:mm:ss").alias(
@@ -214,7 +299,18 @@ def aggregate_top_urls_per_user(
     window_duration: str = "10 seconds",
     slide_duration: str = "5 seconds",
 ) -> DataFrame:
-    """Computes base user-url visit counts for ranked Top-N extraction."""
+    """Compute windowed user-URL visit counts for Top-N ranking.
+
+    Args:
+        df: Parsed and watermarked e-commerce event DataFrame.
+        timestamp_field: Name of the event timestamp column for windowing.
+        window_duration: Sliding window length (e.g., ``"10 seconds"``).
+        slide_duration: Window slide interval (e.g., ``"5 seconds"``).
+
+    Returns:
+        DataFrame with ``window_start``, ``window_end``, ``user_id``, ``url``,
+        and ``count`` columns.
+    """
     return (
         df.groupBy(
             window(col(timestamp_field), window_duration, slide_duration),
@@ -238,7 +334,21 @@ def aggregate_product_sales(
     window_duration: str = "10 seconds",
     slide_duration: str = "5 seconds",
 ) -> DataFrame:
-    """Aggregates purchase revenue and units by user_id, product_id, and category for dimensional joins."""
+    """Aggregate purchase revenue and units by user, product, and category.
+
+    Produces a fact-style windowed table suitable for joining against OLTP
+    customer and product dimensions in the dbt Gold layer.
+
+    Args:
+        df: Parsed and watermarked e-commerce event DataFrame.
+        timestamp_field: Name of the event timestamp column for windowing.
+        window_duration: Sliding window length (e.g., ``"10 seconds"``).
+        slide_duration: Window slide interval (e.g., ``"5 seconds"``).
+
+    Returns:
+        DataFrame with ``window_start``, ``window_end``, ``user_id``,
+        ``product_id``, ``category``, ``revenue``, and ``units`` columns.
+    """
     purchases = df.filter(
         (col("event_type") == "purchase") & col("product_id").isNotNull()
     )

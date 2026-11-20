@@ -1,3 +1,5 @@
+"""Distributed Spark data quality verification using Amazon PyDeequ."""
+
 import argparse
 from datetime import datetime, timezone
 import json
@@ -7,6 +9,8 @@ import sys
 # Configure Spark version before importing PyDeequ
 os.environ.setdefault("SPARK_VERSION", "3.5")
 
+import pandas as pd  # noqa: E402
+import pyarrow  # noqa: E402, F401 - ensures pyarrow engine is registered for Parquet export
 import pydeequ  # noqa: E402
 from pydeequ.checks import Check, CheckLevel  # noqa: E402
 from pydeequ.verification import VerificationResult, VerificationSuite  # noqa: E402
@@ -22,11 +26,23 @@ def run_pydeequ_verification(
     df: DataFrame,
     output_base_dir: str = "projects/ecommerce/output_data",
 ) -> dict:
-    """Runs Amazon Deequ data quality verification on a bounded e-commerce DataFrame.
+    """Run Amazon Deequ data quality verification on a bounded DataFrame.
 
     Validates schema completeness, allowed event types, and non-negative pricing,
-    and persists a JSON summary report for downstream observability and Streamlit.
+    and persists both a JSON summary report and a flat Parquet snapshot for
+    dbt monitor views and Apache Superset observability.
+
+    Args:
+        spark: Active SparkSession configured with the Deequ Maven package.
+        df: Bounded Spark DataFrame containing parsed e-commerce events.
+        output_base_dir: Root output directory where ``pydeequ_metrics/``
+            artifacts are written.
+
+    Returns:
+        Dictionary summarizing overall status, row count, and constraint
+        results.
     """
+    # PyDeequ VerificationSuite only supports bounded batch DataFrames, not unbounded streams.
     if df.isStreaming:
         logger.warning(
             "Skipping PyDeequ verification because the input DataFrame is unbounded streaming."
@@ -71,6 +87,24 @@ def run_pydeequ_verification(
     with open(report_path, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2, default=str)
 
+    # Persist flat Parquet snapshot for dbt monitor views and Apache Superset charting.
+    flat_rows = [
+        {
+            "engine": "pydeequ",
+            "generated_at": report["generated_at"],
+            "row_count": int(row_count),
+            "overall_status": overall_status,
+            "check_name": str(r.get("check", "")),
+            "check_level": str(r.get("check_level", "")),
+            "constraint": str(r.get("constraint", "")),
+            "constraint_status": str(r.get("constraint_status", "")),
+            "constraint_message": str(r.get("constraint_message", "")),
+        }
+        for r in rows
+    ]
+    parquet_path = os.path.join(metrics_dir, "pydeequ_checks.parquet")
+    pd.DataFrame(flat_rows).to_parquet(parquet_path, index=False, engine="pyarrow")
+
     logger.info(
         "PyDeequ verification finished with status=%s (%d constraints). Report: %s",
         overall_status,
@@ -81,7 +115,12 @@ def run_pydeequ_verification(
 
 
 def _run_standalone(input_json: str, output_base_dir: str) -> None:
-    """Initializes a SparkSession with Deequ and validates the raw JSON event feed."""
+    """Initialize a SparkSession with Deequ and validate a raw JSON event feed.
+
+    Args:
+        input_json: Path to the JSON-lines raw e-commerce event dataset.
+        output_base_dir: Root output directory for ``pydeequ_metrics/`` outputs.
+    """
     spark = (
         SparkSession.builder.appName("EcommercePyDeequCheck")
         .config("spark.jars.packages", pydeequ.deequ_maven_coord)
@@ -97,6 +136,7 @@ def _run_standalone(input_json: str, output_base_dir: str) -> None:
             sys.exit(1)
     finally:
         spark.stop()
+        # PyDeequ leaves JVM callback daemon threads alive after spark.stop(); force clean process exit.
         os._exit(0)
 
 

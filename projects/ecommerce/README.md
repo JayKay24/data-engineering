@@ -1,6 +1,6 @@
 # E-Commerce Real-Time Lambda Architecture & Orchestration
 
-This project implements a complete **Lambda Architecture** for high-volume e-commerce intelligence, combining real-time Kafka/PySpark streaming, PostgreSQL OLTP dimensional enrichment, dbt + DuckDB batch curation, dual-layer data quality governance (PyDeequ + Great Expectations), optional GCP lakehouse sync, and automated Airflow orchestration with an interactive Streamlit dashboard.
+This project implements a complete **Lambda Architecture** for high-volume e-commerce intelligence, combining real-time Kafka/PySpark streaming, PostgreSQL OLTP dimensional enrichment, dbt + DuckDB batch curation, dual-layer data quality governance (PyDeequ + Great Expectations), optional GCP lakehouse sync, and automated Airflow orchestration with **Apache Superset** executive BI dashboards.
 
 ```mermaid
 flowchart TD
@@ -20,11 +20,12 @@ flowchart TD
         SENSOR --> SYNC[sync_postgres_dimensions]
         SYNC --> DBT[dbt build & test]
         DBT --> GX[Great Expectations Quality Gate]
-        GX --> GCP[Optional GCS & BigQuery Sync]
+        GX --> MON[dbt Monitor Views]
+        MON --> GCP[Optional GCS & BigQuery Sync]
         DBT -->|Build Staging & Marts| DUCK[(DuckDB Gold Warehouse)]
-        DUCK -->|Queries| VIZ[Streamlit Executive Dashboard :8501]
-        GX -.->|Quality Report| VIZ
-        DEEQU -.->|Quality Report| VIZ
+        DUCK -->|Read-Only duckdb-engine| BI[Apache Superset BI :8088]
+        GX -.->|gx_checks.parquet| MON
+        DEEQU -.->|pydeequ_checks.parquet| MON
     end
 
     subgraph Batch Layer [Batch Layer - dbt & DuckDB]
@@ -62,7 +63,7 @@ flowchart TD
 *   [macros/](batch_layer/macros/): Centralized SQL macros (`get_stream_path.sql` for dynamic Parquet source resolution).
 *   [models/staging/](batch_layer/models/staging/): Staging views over streaming Delta/Parquet and OLTP dimension outputs with integrity tests.
 *   [models/marts/](batch_layer/models/marts/): Analytical models (`cumulative_users`, `daily_category_sales`, `monthly_category_sales`, `daily_top_urls`, `daily_top_urls_per_user`, `daily_url_conversion`, `new_vs_returning_users`, `customer_segment_spending`, `brand_category_performance`).
-*   [models/monitors/](batch_layer/models/monitors/): Freshness and latency monitor (`last_ingest.sql`).
+*   [models/monitors/](batch_layer/models/monitors/): Freshness and data quality monitors (`last_ingest.sql`, `gx_quality_checks.sql`, `pydeequ_quality_checks.sql`).
 
 ### 4. Data Quality Gate (`quality/`)
 *   [validate_ecommerce.py](quality/validate_ecommerce.py): Great Expectations validation suites for raw event JSON feeds and DuckDB Gold marts (`projects/ecommerce/quality:validate`).
@@ -71,11 +72,11 @@ flowchart TD
 *   [config.py](cloud_sync/config.py) & [export_to_gcp.py](cloud_sync/export_to_gcp.py): Optional Google Cloud Storage Parquet export and BigQuery warehouse loader (`projects/ecommerce/cloud_sync:export`). Controlled via `GCP_SYNC_ENABLED=true`.
 
 ### 6. Orchestration & Serving Layer (`orchestration/`)
-*   [docker-compose.yml](orchestration/docker-compose.yml): Airflow (LocalExecutor), PostgreSQL 16 backend, and Streamlit containers.
-*   [Dockerfile](orchestration/Dockerfile) & [viz/Dockerfile](orchestration/viz/Dockerfile): Lockfile-pinned containers deriving package constraints from `3rdparty/user_reqs.lock`.
+*   [docker-compose.yml](orchestration/docker-compose.yml): Airflow (LocalExecutor), shared PostgreSQL 16 (`airflow` & `superset` DBs), Redis 7 cache, and Apache Superset 6.1.0 containers.
+*   [Dockerfile](orchestration/Dockerfile) & [superset/Dockerfile](orchestration/superset/Dockerfile): Lockfile-pinned containers deriving package constraints from `3rdparty/user_reqs.lock`.
 *   [Makefile](orchestration/Makefile): Cluster lifecycle commands (`make up`, `make down`, `make logs`).
-*   [dags/ecommerce_pipeline.py](orchestration/dags/ecommerce_pipeline.py): Airflow DAG orchestrating `DeltaStreamSensor`, OLTP dimension sync, `dbt build` & `dbt test`, Great Expectations validation, and optional GCP sync.
-*   [viz/app.py](orchestration/viz/app.py): Interactive Streamlit dashboard visualizer (`:8501`) featuring Category Sales, URL Conversion, User Growth, OLTP Customer & Brand Intelligence, and Data Quality & Pipeline Health tabs.
+*   [dags/ecommerce_pipeline.py](orchestration/dags/ecommerce_pipeline.py): Airflow DAG orchestrating `DeltaStreamSensor`, OLTP dimension sync, `dbt build` & `dbt test`, Great Expectations validation, dbt monitor views, and optional GCP sync.
+*   [superset/](orchestration/superset/): Declarative **Dashboards-as-Code** YAML bundle (`assets/`), bootstrapper (`bootstrap.sh`), Redis + Postgres config (`superset_config.py`), and Pants validator/packager (`package_assets.py`), serving the **E-Commerce Real-Time Intelligence** dashboard at `:8088` via read-only `duckdb-engine`.
 
 ---
 
@@ -120,12 +121,12 @@ make query      # Interactive DuckDB CLI on data/ecommerce.duckdb
 
 ```bash
 cd projects/ecommerce/orchestration
-make build  # Builds lockfile-pinned Airflow & Streamlit container images
-make up     # Starts Airflow, Postgres, and Streamlit in background
+make build  # Builds lockfile-pinned Airflow & Superset container images
+make up     # Starts Airflow, Postgres, Redis, and Superset in background
 make status # Checks container health status
 ```
 - **Airflow Webserver UI:** `http://localhost:8080` (`admin` / `admin`)
-- **Streamlit Dashboard:** `http://localhost:8501`
+- **Apache Superset BI:** `http://localhost:8088` (`admin` / `admin`)
 
 To stop all orchestration services:
 ```bash

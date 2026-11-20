@@ -1,3 +1,5 @@
+"""Shared Kafka Avro producer/consumer utilities and PySpark ABRiS helpers."""
+
 from collections.abc import Callable
 import logging
 from typing import Any
@@ -11,7 +13,14 @@ from pyspark.sql.functions import col
 
 
 def load_avro_schema(schema_path: str) -> str:
-    """Reads and returns the Avro schema string from a given file path."""
+    """Read and return an Avro schema JSON string from disk.
+
+    Args:
+        schema_path: Filesystem path to the ``.avsc`` schema file.
+
+    Returns:
+        Raw Avro schema JSON string.
+    """
     with open(schema_path, "r", encoding="utf-8") as f:
         return f.read()
 
@@ -19,7 +28,14 @@ def load_avro_schema(schema_path: str) -> str:
 def kafka_delivery_report(
     err: Any, msg: Any, logger: logging.Logger | None = None
 ) -> None:
-    """Standard Kafka delivery report callback."""
+    """Log Kafka message delivery outcomes from a producer callback.
+
+    Args:
+        err: Delivery error reported by ``confluent_kafka.Producer``, or
+            ``None`` on success.
+        msg: Delivered Kafka message metadata object.
+        logger: Optional logger used to record delivery errors or offsets.
+    """
     if err:
         if logger:
             logger.error("Message delivery failed: %s", err)
@@ -39,8 +55,20 @@ def create_avro_producer(
     schema_str: str,
     to_dict_func: Callable[[Any, SerializationContext], dict] | None = None,
 ) -> tuple[Producer, AvroSerializer]:
-    """Creates a configured Confluent Kafka Producer and AvroSerializer."""
+    """Create a configured Confluent Kafka Producer and AvroSerializer.
+
+    Args:
+        bootstrap_servers: Comma-separated Kafka broker host/port list.
+        schema_registry_url: Base URL of the Confluent Schema Registry.
+        schema_str: Avro schema JSON string used to serialize values.
+        to_dict_func: Optional callable converting domain objects to dicts
+            before Avro serialization. Defaults to ``dict(event)``.
+
+    Returns:
+        Tuple of ``(Producer, AvroSerializer)`` ready for producing events.
+    """
     sr_client = SchemaRegistryClient({"url": schema_registry_url})
+    # AvroSerializer requires plain dicts; default to dict(event) when no custom mapper is provided.
     serializer = AvroSerializer(
         schema_registry_client=sr_client,
         schema_str=schema_str,
@@ -57,10 +85,23 @@ def get_abris_from_avro_column(
     schema_registry_url: str,
     is_key: bool = False,
 ) -> Column:
-    """Invokes ABRiS via Py4J Gateway to deserialize Confluent Avro binary payloads
+    """Deserialize Confluent Avro payloads into a Spark SQL column via ABRiS.
 
-    into structured Spark SQL columns using Confluent Schema Registry.
+    Invokes the JVM ABRiS library through PySpark's Py4J gateway using the
+    latest schema registered under the topic name strategy.
+
+    Args:
+        spark: Active SparkSession providing the Py4J JVM gateway.
+        data_col: Name of the binary DataFrame column containing Avro bytes.
+        topic: Kafka topic name used for Schema Registry subject lookup.
+        schema_registry_url: Base URL of the Confluent Schema Registry.
+        is_key: Whether to resolve the key subject (``-key``) instead of the
+            value subject (``-value``).
+
+    Returns:
+        Spark SQL ``Column`` representing the deserialized Avro struct.
     """
+    # ABRiS has no native Python API, so invoke its Scala config/functions through Spark's Py4J JVM gateway.
     jvm = spark._jvm
 
     abris_registry_config = (
@@ -72,6 +113,7 @@ def get_abris_from_avro_column(
 
     scala_abris_func = jvm.za.co.absa.abris.avro.functions
 
+    # Wrap the underlying Java Column (_jc) back into a PySpark Column.
     return Column(
         scala_abris_func.from_avro(
             col(data_col)._jc,

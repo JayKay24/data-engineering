@@ -1,3 +1,5 @@
+"""Airflow DAG orchestrating the e-commerce Lambda batch refresh pipeline."""
+
 from datetime import datetime, timedelta
 import glob
 import os
@@ -28,12 +30,20 @@ _FALLBACK_SINKS = [
     "top_urls_per_user",
 ]
 
+# Airflow tasks invoke the isolated pipeline virtualenv when present to avoid Airflow dependency conflicts.
 _PIPELINE_PYTHON = "PIPELINE_PY=$( [ -x /opt/pipeline-venv/bin/python ] && echo /opt/pipeline-venv/bin/python || echo python )"
 _PIPELINE_DBT = "PIPELINE_DBT=$( [ -x /opt/pipeline-venv/bin/dbt ] && echo /opt/pipeline-venv/bin/dbt || echo dbt )"
 
 
 def _load_sink_names(config_path: Path | None = None) -> list[str]:
-    """Loads sink table names from ecommerce_config.yml with a safe fallback list."""
+    """Load sink table names from ``ecommerce_config.yml`` with a fallback list.
+
+    Args:
+        config_path: Optional override path to the YAML configuration file.
+
+    Returns:
+        List of expected streaming sink table names.
+    """
     path = config_path or _CONFIG_PATH
     try:
         with open(path, "r", encoding="utf-8") as f:
@@ -55,12 +65,31 @@ class DeltaStreamSensor(BaseSensorOperator):
         min_ready_tables: int = 3,
         **kwargs,
     ):
+        """Initialize the DeltaStreamSensor.
+
+        Args:
+            output_prefix: Base directory containing streaming Delta/Parquet
+                table subdirectories.
+            min_ready_tables: Minimum number of sink tables containing data
+                before the sensor succeeds.
+            **kwargs: Additional keyword arguments forwarded to
+                ``BaseSensorOperator``.
+        """
         super().__init__(**kwargs)
         self.output_prefix = output_prefix
         self.min_ready_tables = min_ready_tables
         self.targets = _load_sink_names()
 
     def poke(self, context) -> bool:
+        """Check whether the minimum number of streaming sink tables have data.
+
+        Args:
+            context: Airflow task execution context dictionary.
+
+        Returns:
+            ``True`` if at least ``min_ready_tables`` tables contain Delta log
+            or Parquet files; ``False`` otherwise.
+        """
         prefix = os.environ.get("CLICK_STREAM_OUTPUT_PREFIX", self.output_prefix)
         ready_count = 0
         for table in self.targets:
@@ -100,6 +129,7 @@ with DAG(
         min_ready_tables=3,
         poke_interval=20,
         timeout=600,
+        # Release the Airflow worker slot between pokes while waiting for streaming outputs.
         mode="reschedule",
     )
 
@@ -148,6 +178,15 @@ with DAG(
         ),
     )
 
+    dbt_build_monitors = BashOperator(
+        task_id="dbt_build_monitors",
+        bash_command=(
+            f"{_PIPELINE_DBT} && "
+            "cd ${DBT_PROJ_DIR:-/opt/project/batch_layer} && "
+            "$PIPELINE_DBT build -s 'path:models/monitors/**'"
+        ),
+    )
+
     sync_cloud_warehouse = BashOperator(
         task_id="sync_cloud_warehouse",
         bash_command=(
@@ -163,5 +202,6 @@ with DAG(
         >> dbt_build_marts
         >> dbt_test_all
         >> run_great_expectations
+        >> dbt_build_monitors
         >> sync_cloud_warehouse
     )

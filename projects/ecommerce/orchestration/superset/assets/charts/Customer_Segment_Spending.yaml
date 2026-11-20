@@ -1,0 +1,23 @@
+slice_name: OLTP-Enriched Segment Spending
+description: null
+certified_by: null
+certification_details: null
+viz_type: echarts_timeseries_bar
+params:
+  viz_type: echarts_timeseries_bar
+  x_axis: segment
+  metrics:
+  - segment_revenue
+  groupby:
+  - region
+  adhoc_filters: []
+  row_limit: 100
+  color_scheme: supersetColors
+  show_legend: true
+  y_axis_format: $,.2f
+  extra_form_data: {}
+query_context: null
+cache_timeout: null
+uuid: 33333333-3333-4333-8333-333333333308
+version: 1.0.0
+dataset_uuid: 22222222-2222-4222-8222-222222222204

@@ -21,6 +21,15 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   airflow:
     build:
       context: ../../..
@@ -61,19 +70,29 @@ services:
       - ./dags:/opt/airflow/dags
     restart: unless-stopped
 
-  streamlit:
+  superset:
     build:
       context: ../../..
-      dockerfile: projects/ecommerce/orchestration/viz/Dockerfile
-    environment:
-      DUCKDB_PATH: /opt/project/batch_layer/data/ecommerce.duckdb
-      CLICK_STREAM_OUTPUT_PREFIX: /opt/project/output_data
-    volumes:
-      - ..:/opt/project
-    ports:
-      - "8501:8501"
+      dockerfile: projects/ecommerce/orchestration/superset/Dockerfile
     depends_on:
-      - airflow
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      SUPERSET_SECRET_KEY: ${SUPERSET_SECRET_KEY:-ecommerce-superset-dev-secret-key-change-me}
+      SUPERSET_DB_HOST: postgres
+      SUPERSET_DB_PORT: "5432"
+      SUPERSET_DB_NAME: superset
+      SUPERSET_DB_USER: airflow
+      SUPERSET_DB_PASSWORD: airflow
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      DUCKDB_PATH: /opt/project/batch_layer/data/ecommerce.duckdb
+    volumes:
+      - ..:/opt/project:ro
+    ports:
+      - "8088:8088"
     restart: unless-stopped
 
 volumes:

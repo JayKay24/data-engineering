@@ -1,3 +1,5 @@
+"""Google Cloud Platform client and configuration factory for GCS and BigQuery."""
+
 import os
 from typing import TypedDict
 
@@ -5,6 +7,8 @@ from google.cloud import bigquery, storage
 
 
 class GCPConfig(TypedDict):
+    """Typed dictionary holding GCP lakehouse and warehouse sync settings."""
+
     enabled: bool
     project_id: str
     gcs_bucket: str
@@ -12,7 +16,12 @@ class GCPConfig(TypedDict):
 
 
 def get_gcp_config() -> GCPConfig:
-    """Retrieves GCP lakehouse and warehouse configuration from environment variables."""
+    """Retrieve GCP lakehouse and warehouse configuration from environment variables.
+
+    Returns:
+        Dictionary containing sync enablement, project ID, GCS bucket, and
+        BigQuery dataset name.
+    """
     enabled = os.getenv("GCP_SYNC_ENABLED", "false").lower() in ("true", "1", "yes")
     return {
         "enabled": enabled,
@@ -25,12 +34,28 @@ def get_gcp_config() -> GCPConfig:
 
 
 def get_storage_client(project_id: str | None = None) -> storage.Client:
-    """Returns a Google Cloud Storage client instance."""
+    """Create and return a Google Cloud Storage client instance.
+
+    Args:
+        project_id: Optional GCP project ID override. Defaults to the
+            configured ``project_id`` from ``get_gcp_config()``.
+
+    Returns:
+        Configured ``google.cloud.storage.Client`` instance.
+    """
     config = get_gcp_config()
     return storage.Client(project=project_id or config["project_id"])
 
 
 def get_bigquery_client(project_id: str | None = None) -> bigquery.Client:
-    """Returns a Google Cloud BigQuery client instance."""
+    """Create and return a Google Cloud BigQuery client instance.
+
+    Args:
+        project_id: Optional GCP project ID override. Defaults to the
+            configured ``project_id`` from ``get_gcp_config()``.
+
+    Returns:
+        Configured ``google.cloud.bigquery.Client`` instance.
+    """
     config = get_gcp_config()
     return bigquery.Client(project=project_id or config["project_id"])
