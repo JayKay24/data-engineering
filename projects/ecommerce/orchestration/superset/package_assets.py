@@ -9,6 +9,17 @@ import yaml
 
 
 def _load_yaml(path: str) -> dict:
+    """Load and validate a YAML file as a dictionary mapping.
+
+    Args:
+        path: Filesystem path to the YAML asset file.
+
+    Returns:
+        Parsed YAML mapping.
+
+    Raises:
+        ValueError: If the top-level YAML document is not a mapping.
+    """
     with open(path, "r", encoding="utf-8") as f:
         data = yaml.safe_load(f)
     if not isinstance(data, dict):
@@ -17,7 +28,15 @@ def _load_yaml(path: str) -> dict:
 
 
 def _collect_chart_uuids(node: object) -> set[str]:
-    """Recursively extracts chart UUID references from a Superset dashboard position tree."""
+    """Recursively extract chart UUID references from a dashboard position tree.
+
+    Args:
+        node: Nested dictionary or list node inside a dashboard ``position``
+            layout specification.
+
+    Returns:
+        Set of referenced chart UUID strings.
+    """
     uuids: set[str] = set()
     if isinstance(node, dict):
         if node.get("type") == "CHART":
@@ -33,7 +52,15 @@ def _collect_chart_uuids(node: object) -> set[str]:
 
 
 def validate_assets(assets_dir: str) -> list[str]:
-    """Validates YAML syntax, JSON fields, and UUID referential integrity across assets."""
+    """Validate YAML syntax, mapping fields, and UUID integrity across assets.
+
+    Args:
+        assets_dir: Root directory containing ``metadata.yaml``,
+            ``databases/``, ``datasets/``, ``charts/``, and ``dashboards/``.
+
+    Returns:
+        List of validation error messages (empty when all assets are valid).
+    """
     errors: list[str] = []
     if not os.path.isdir(assets_dir):
         return [f"Assets directory does not exist: {assets_dir}"]
@@ -106,7 +133,15 @@ def validate_assets(assets_dir: str) -> list[str]:
 
 
 def build_zip_bundle(assets_dir: str, output_zip: str) -> int:
-    """Packages validated Superset YAML assets into a Superset v1 import ZIP bundle."""
+    """Package validated Superset YAML assets into a v1 import ZIP bundle.
+
+    Args:
+        assets_dir: Root directory containing validated Superset YAML assets.
+        output_zip: Destination path for the generated ZIP archive.
+
+    Returns:
+        Number of YAML asset files written into the ZIP bundle.
+    """
     os.makedirs(os.path.dirname(os.path.abspath(output_zip)), exist_ok=True)
     count = 0
     with zipfile.ZipFile(output_zip, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -124,7 +159,7 @@ def build_zip_bundle(assets_dir: str, output_zip: str) -> int:
 
 
 def main() -> None:
-    """CLI entry point for validating and optionally packaging Superset assets."""
+    """Run the CLI entry point for validating and packaging Superset assets."""
     default_assets = (
         "projects/ecommerce/orchestration/superset/assets"
         if os.path.isdir("projects/ecommerce/orchestration/superset/assets")

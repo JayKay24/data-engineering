@@ -1,3 +1,5 @@
+"""Thread-safe PostgreSQL connection pool and configuration factory."""
+
 from contextlib import contextmanager
 import os
 import threading
@@ -8,6 +10,8 @@ from psycopg2.pool import ThreadedConnectionPool
 
 
 class PostgresConfig(TypedDict):
+    """Typed dictionary holding PostgreSQL connection parameters."""
+
     host: str
     port: int
     dbname: str
@@ -20,7 +24,11 @@ _connection_pool: ThreadedConnectionPool | None = None
 
 
 def get_postgres_config() -> PostgresConfig:
-    """Retrieves PostgreSQL connection parameters from environment variables."""
+    """Retrieve PostgreSQL connection parameters from environment variables.
+
+    Returns:
+        Dictionary of host, port, dbname, user, and password settings.
+    """
     return {
         "host": os.getenv("POSTGRES_HOST", "localhost"),
         "port": int(os.getenv("POSTGRES_PORT", "5432")),
@@ -31,7 +39,15 @@ def get_postgres_config() -> PostgresConfig:
 
 
 def get_pool(minconn: int = 1, maxconn: int = 5) -> ThreadedConnectionPool:
-    """Initializes and returns a thread-safe ThreadedConnectionPool singleton."""
+    """Initialize and return a thread-safe ``ThreadedConnectionPool`` singleton.
+
+    Args:
+        minconn: Minimum number of idle connections maintained in the pool.
+        maxconn: Maximum number of concurrent connections allowed by the pool.
+
+    Returns:
+        Shared ``ThreadedConnectionPool`` instance.
+    """
     global _connection_pool
     if _connection_pool is None:
         with _pool_lock:
@@ -43,7 +59,15 @@ def get_pool(minconn: int = 1, maxconn: int = 5) -> ThreadedConnectionPool:
 
 @contextmanager
 def get_connection() -> Generator[PgConnection, None, None]:
-    """Context manager that borrows a connection, commits on success, rolls back on error, and returns it."""
+    """Borrow a PostgreSQL connection with automatic commit/rollback handling.
+
+    Yields:
+        Active ``psycopg2`` connection borrowed from the shared pool.
+
+    Raises:
+        Exception: Re-raises any exception raised inside the context after
+            rolling back the transaction.
+    """
     pool = get_pool()
     conn = pool.getconn()
     try:

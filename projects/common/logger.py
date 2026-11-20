@@ -1,13 +1,23 @@
+"""Centralized structured logging factory for monorepo pipelines and jobs."""
+
 import logging
 import os
 import sys
 
 
 def get_logger(name: str = "DataEngineering") -> logging.Logger:
-    """Configures (if not already configured) and returns a standard structured logger.
+    """Configure and return a structured stdout logger.
 
-    Format: `YYYY-MM-DD HH:MM:SS [LEVEL] [logger_name] message`
-    Level can be overridden via `LOG_LEVEL` environment variable (defaults to INFO).
+    Configures root logging with the format
+    ``YYYY-MM-DD HH:MM:SS [LEVEL] [logger_name] message`` if no root handlers
+    exist yet. The log level can be overridden via the ``LOG_LEVEL``
+    environment variable (defaults to ``INFO``).
+
+    Args:
+        name: Logger name displayed in log records.
+
+    Returns:
+        Configured ``logging.Logger`` instance.
     """
     log_level_str = os.getenv("LOG_LEVEL", "INFO").upper()
     log_level = getattr(logging, log_level_str, logging.INFO)

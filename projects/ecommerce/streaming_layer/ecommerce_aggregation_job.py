@@ -1,3 +1,5 @@
+"""PySpark Structured Streaming and batch orchestrator for e-commerce KPIs."""
+
 import argparse
 import os
 from pyspark.sql import SparkSession
@@ -32,7 +34,14 @@ logger = get_logger("EcommerceAggregationJob")
 
 
 def load_config(path: str) -> dict:
-    """Loads YAML configuration file."""
+    """Load and parse a YAML pipeline configuration file.
+
+    Args:
+        path: Filesystem path to the YAML configuration file.
+
+    Returns:
+        Parsed configuration dictionary.
+    """
     with open(path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
 
@@ -41,7 +50,16 @@ def init_spark_session(
     app_name: str = "EcommerceAggregationJob",
     enable_pydeequ: bool = False,
 ) -> SparkSession:
-    """Initializes SparkSession with Kafka, ABRiS, Delta Lake, and optional PyDeequ connectors."""
+    """Initialize a SparkSession with Kafka, ABRiS, and Delta Lake connectors.
+
+    Args:
+        app_name: Spark application name.
+        enable_pydeequ: Whether to attach the Amazon Deequ Maven package and
+            exclusions for batch quality verification.
+
+    Returns:
+        Configured ``SparkSession`` instance.
+    """
     logger.info(
         "Initializing SparkSession with Kafka, ABRiS, and Delta Lake support..."
     )
@@ -78,7 +96,15 @@ def run_pipeline(
     is_streaming: bool = True,
     verify_quality: bool = False,
 ) -> None:
-    """Orchestrates ingestion, multi-metric KPI aggregations, quality checks, and Delta Lake persistence."""
+    """Orchestrate Kafka ingestion, KPI aggregations, quality checks, and sinks.
+
+    Args:
+        config_path: Path to the YAML pipeline configuration file.
+        sink: Target sink backend (``"delta"`` or ``"console"``).
+        is_streaming: When ``True``, runs Structured Streaming; when ``False``,
+            runs bounded batch processing.
+        verify_quality: Whether to enable PyDeequ quality checks in batch mode.
+    """
     cfg = load_config(config_path)
     kafka_cfg, sr_cfg = cfg.get("kafka_config", {}), cfg.get("schema_registry", {})
     win_cfg, storage_cfg = cfg.get("windowing", {}), cfg.get("storage", {})

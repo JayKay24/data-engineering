@@ -1,4 +1,9 @@
-"""Validates GitHub Wiki markdown files for broken links, anchors, and code fences."""
+"""Validate GitHub Wiki markdown files for broken links, anchors, and fences.
+
+Checks that required navigation files exist, verifies that all fenced code and
+Mermaid blocks are balanced, and validates internal page links and GFM heading
+anchors across the wiki directory.
+"""
 
 import argparse
 import os
@@ -9,14 +14,30 @@ REQUIRED_FILES = ("Home.md", "_Sidebar.md", "_Footer.md")
 
 
 def gfm_slug(heading: str) -> str:
-    """Converts a Markdown heading to its GitHub Flavored Markdown anchor slug."""
+    """Convert a Markdown heading into its GitHub Flavored Markdown anchor slug.
+
+    Args:
+        heading: Raw Markdown heading text without leading ``#`` markers.
+
+    Returns:
+        Lowercase GFM anchor slug matching GitHub's heading ID rules.
+    """
     slug = heading.strip().lower()
     slug = re.sub(r"[^\w\s-]", "", slug)
     return slug.replace(" ", "-")
 
 
 def collect_headings(text: str) -> set[str]:
-    """Extracts all GFM heading slugs from a markdown document (ignoring code blocks)."""
+    """Extract all GFM heading slugs from a Markdown document.
+
+    Ignores headings inside fenced code or Mermaid blocks.
+
+    Args:
+        text: Full Markdown document text.
+
+    Returns:
+        Set of GFM heading anchor slugs defined in the document.
+    """
     anchors: set[str] = set()
     in_code_block = False
     for line in text.splitlines():
@@ -32,7 +53,14 @@ def collect_headings(text: str) -> set[str]:
 
 
 def validate_wiki_dir(wiki_dir: str) -> list[str]:
-    """Validates all markdown files under ``wiki_dir`` and returns a list of errors."""
+    """Validate all Markdown files in a GitHub Wiki source directory.
+
+    Args:
+        wiki_dir: Path to the directory containing Wiki ``.md`` files.
+
+    Returns:
+        List of human-readable validation error messages (empty if valid).
+    """
     if not os.path.isdir(wiki_dir):
         return [f"Wiki directory does not exist: {wiki_dir}"]
 
@@ -88,7 +116,7 @@ def validate_wiki_dir(wiki_dir: str) -> list[str]:
 
 
 def main() -> None:
-    """CLI entry point for validating the repository's GitHub Wiki source directory."""
+    """Run the CLI entry point for validating the GitHub Wiki source directory."""
     default_wiki = (
         "docs/wiki"
         if os.path.isdir("docs/wiki")
