@@ -41,6 +41,7 @@ def collect_headings(text: str) -> set[str]:
     anchors: set[str] = set()
     in_code_block = False
     for line in text.splitlines():
+        # Toggle state on fenced blocks so '#' comments in shell/Python snippets aren't treated as headings.
         if line.lstrip().startswith("```"):
             in_code_block = not in_code_block
             continue

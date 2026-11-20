@@ -30,6 +30,7 @@ _FALLBACK_SINKS = [
     "top_urls_per_user",
 ]
 
+# Airflow tasks invoke the isolated pipeline virtualenv when present to avoid Airflow dependency conflicts.
 _PIPELINE_PYTHON = "PIPELINE_PY=$( [ -x /opt/pipeline-venv/bin/python ] && echo /opt/pipeline-venv/bin/python || echo python )"
 _PIPELINE_DBT = "PIPELINE_DBT=$( [ -x /opt/pipeline-venv/bin/dbt ] && echo /opt/pipeline-venv/bin/dbt || echo dbt )"
 
@@ -128,6 +129,7 @@ with DAG(
         min_ready_tables=3,
         poke_interval=20,
         timeout=600,
+        # Release the Airflow worker slot between pokes while waiting for streaming outputs.
         mode="reschedule",
     )
 

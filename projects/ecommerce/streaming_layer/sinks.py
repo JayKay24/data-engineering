@@ -31,6 +31,7 @@ def write_streaming_sinks(
     active_queries = []
 
     for name, df in streams_dict.items():
+        # Each StreamingQuery must use an isolated checkpoint directory to prevent offset/state collisions.
         if sink_type == "console":
             query = (
                 df.writeStream.outputMode(output_mode)
@@ -74,6 +75,7 @@ def write_batch_sinks(
         output_base_dir: Root directory where Delta Lake tables are overwritten.
     """
     for name, df in streams_dict.items():
+        # Each StreamingQuery must use an isolated checkpoint directory to prevent offset/state collisions.
         if sink_type == "console":
             print(f"\n--- Batch Output: {name} ---")
             df.show(truncate=False)

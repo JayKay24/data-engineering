@@ -83,6 +83,7 @@ def init_spark_session(
         )
     )
     if enable_pydeequ:
+        # Exclude f2j/arpack native coordinates that fail Ivy resolution in some Spark environments.
         builder = builder.config("spark.jars.excludes", pydeequ.f2j_maven_coord)
 
     spark = builder.getOrCreate()
@@ -124,6 +125,7 @@ def run_pipeline(
             "kafka.bootstrap.servers": bootstrap,
             "subscribe": topic,
             "startingOffsets": kafka_cfg.get("starting_offsets", "earliest"),
+            # Tolerate topic resets/offset expiration in local dev and demo runs.
             "failOnDataLoss": "false",
         }
         df_raw = (

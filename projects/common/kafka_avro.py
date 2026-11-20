@@ -68,6 +68,7 @@ def create_avro_producer(
         Tuple of ``(Producer, AvroSerializer)`` ready for producing events.
     """
     sr_client = SchemaRegistryClient({"url": schema_registry_url})
+    # AvroSerializer requires plain dicts; default to dict(event) when no custom mapper is provided.
     serializer = AvroSerializer(
         schema_registry_client=sr_client,
         schema_str=schema_str,
@@ -100,6 +101,7 @@ def get_abris_from_avro_column(
     Returns:
         Spark SQL ``Column`` representing the deserialized Avro struct.
     """
+    # ABRiS has no native Python API, so invoke its Scala config/functions through Spark's Py4J JVM gateway.
     jvm = spark._jvm
 
     abris_registry_config = (
@@ -111,6 +113,7 @@ def get_abris_from_avro_column(
 
     scala_abris_func = jvm.za.co.absa.abris.avro.functions
 
+    # Wrap the underlying Java Column (_jc) back into a PySpark Column.
     return Column(
         scala_abris_func.from_avro(
             col(data_col)._jc,

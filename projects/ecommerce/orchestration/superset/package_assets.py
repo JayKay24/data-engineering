@@ -75,6 +75,8 @@ def validate_assets(assets_dir: str) -> list[str]:
     dataset_uuids: set[str] = set()
     chart_uuids: set[str] = set()
 
+    # Multi-pass walk validates dependencies in topological order (databases -> datasets -> charts -> dashboards)
+    # regardless of os.walk directory traversal order.
     for root, _, files in os.walk(assets_dir):
         rel_root = os.path.relpath(root, assets_dir)
         for fname in sorted(files):
@@ -150,6 +152,7 @@ def build_zip_bundle(assets_dir: str, output_zip: str) -> int:
                 if not fname.endswith((".yaml", ".yml")):
                     continue
                 full_path = os.path.join(root, fname)
+                # Superset's v1 bundle importer expects all YAML files under a single top-level directory.
                 arcname = os.path.join(
                     "ecommerce_dashboard", os.path.relpath(full_path, assets_dir)
                 )

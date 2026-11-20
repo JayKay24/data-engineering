@@ -42,6 +42,7 @@ def run_pydeequ_verification(
         Dictionary summarizing overall status, row count, and constraint
         results.
     """
+    # PyDeequ VerificationSuite only supports bounded batch DataFrames, not unbounded streams.
     if df.isStreaming:
         logger.warning(
             "Skipping PyDeequ verification because the input DataFrame is unbounded streaming."
@@ -135,6 +136,7 @@ def _run_standalone(input_json: str, output_base_dir: str) -> None:
             sys.exit(1)
     finally:
         spark.stop()
+        # PyDeequ leaves JVM callback daemon threads alive after spark.stop(); force clean process exit.
         os._exit(0)
 
 

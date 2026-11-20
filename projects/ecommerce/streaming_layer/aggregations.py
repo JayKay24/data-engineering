@@ -38,6 +38,7 @@ def build_parsed_stream(
         ).alias("data")
     ).select("data.*")
 
+    # Spark requires a TimestampType column (not ISO string) before applying event-time watermarking.
     return df_deserialized.withColumn(
         timestamp_field, to_timestamp(col(timestamp_field))
     ).withWatermark(timestamp_field, watermark_delay)
@@ -135,6 +136,7 @@ def aggregate_url_conversion(
         col("event_type"),
     ).count()
 
+    # Explicitly enumerate pivot values because Structured Streaming cannot infer dynamic pivot columns.
     wide = (
         counts.groupBy("window", "url")
         .pivot("event_type", ["view", "purchase"])
@@ -217,6 +219,7 @@ def aggregate_cart_metrics(
         col("event_type"),
     ).count()
 
+    # Enumerate all funnel stages explicitly so every micro-batch outputs a stable schema.
     wide = (
         counts.groupBy("window", "url")
         .pivot("event_type", ["view", "add_to_cart", "purchase"])
@@ -273,6 +276,7 @@ def aggregate_session_funnels(
             F.session_window(col(timestamp_field), f"{session_gap_seconds} seconds"),
             col("user_id"),
         )
+        # Collect distinct event types per session so stage detection is order-independent.
         .agg(F.collect_set(col("event_type")).alias("events"))
         .select(
             date_format(col("session_window.start"), "yyyy-MM-dd HH:mm:ss").alias(

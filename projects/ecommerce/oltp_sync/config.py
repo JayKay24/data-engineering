@@ -49,6 +49,7 @@ def get_pool(minconn: int = 1, maxconn: int = 5) -> ThreadedConnectionPool:
         Shared ``ThreadedConnectionPool`` instance.
     """
     global _connection_pool
+    # Double-checked locking avoids acquiring the lock once the singleton pool is initialized.
     if _connection_pool is None:
         with _pool_lock:
             if _connection_pool is None:
@@ -77,4 +78,5 @@ def get_connection() -> Generator[PgConnection, None, None]:
         conn.rollback()
         raise
     finally:
+        # Always return the borrowed connection to the pool so connections do not leak.
         pool.putconn(conn)

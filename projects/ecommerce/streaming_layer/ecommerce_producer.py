@@ -82,11 +82,13 @@ def produce_events(
                 value=serialized,
                 callback=lambda err, msg: kafka_delivery_report(err, msg, logger),
             )
+            # Non-blocking poll(0) services librdkafka delivery callbacks without stalling the loop.
             producer.poll(0)
             count += 1
             if delay_seconds > 0:
                 time.sleep(delay_seconds)
 
+    # Block until all buffered messages in librdkafka are delivered before exiting.
     producer.flush()
     logger.info("Successfully produced %d e-commerce events to '%s'.", count, topic)
 

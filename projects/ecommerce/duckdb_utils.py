@@ -37,6 +37,8 @@ def connect_duckdb_readonly(
         if "Could not set lock" not in str(exc):
             raise
 
+    # DuckDB holds exclusive file locks during active writes; copy both the DB and WAL
+    # into an ephemeral directory so concurrent readers (e.g. Superset/GX) see a consistent snapshot.
     with tempfile.TemporaryDirectory() as tmpdir:
         snapshot_path = os.path.join(tmpdir, os.path.basename(duckdb_path))
         shutil.copy2(duckdb_path, snapshot_path)

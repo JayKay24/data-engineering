@@ -24,11 +24,13 @@ def load_locked_versions(lockfile_path: str) -> dict[str, str]:
         ValueError: If no ``locked_resolves`` entries exist in the lockfile.
     """
     with open(lockfile_path, "r", encoding="utf-8") as f:
+        # Pants lockfiles prepend '//' metadata header comments that must be stripped before JSON parsing.
         json_text = "".join(line for line in f if not line.lstrip().startswith("//"))
     data = json.loads(json_text)
     resolves = data.get("locked_resolves", [])
     if not resolves:
         raise ValueError(f"No locked_resolves found in {lockfile_path}")
+    # Normalize package names to lowercase because PyPI names are case-insensitive (PEP 503).
     return {
         req["project_name"].lower(): req["version"]
         for req in resolves[0].get("locked_requirements", [])
