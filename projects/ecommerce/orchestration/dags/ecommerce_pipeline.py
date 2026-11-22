@@ -198,6 +198,7 @@ with DAG(
     start_date=datetime(2026, 1, 1),
     schedule="*/15 * * * *",
     catchup=False,
+    max_active_runs=1,
     default_args=default_args,
     description=(
         "End-to-end Medallion DAG: optional availableNow Spark ingestion, "
