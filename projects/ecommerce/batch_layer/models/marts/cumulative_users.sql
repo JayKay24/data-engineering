@@ -8,9 +8,9 @@ with distinct_users as (
   group by user_id
 )
 select
-  first_seen::date as cohort_date,
-  count(distinct user_id) as new_users,
-  sum(count(distinct user_id)) over (order by first_seen::date) as cumulative_users
+  cast(first_seen::date as date) as cohort_date,
+  cast(count(distinct user_id) as bigint) as new_users,
+  cast(sum(count(distinct user_id)) over (order by first_seen::date) as bigint) as cumulative_users
 from distinct_users
 group by first_seen::date
 order by cohort_date

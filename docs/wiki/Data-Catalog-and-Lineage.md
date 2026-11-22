@@ -2,7 +2,7 @@
 
 ## 1. Executive Summary
 
-This document serves as the **living data dictionary and lineage specification** for the E-Commerce Real-Time Lambda Architecture (`projects/ecommerce`). It tracks every schema contract from raw Avro ingress and PostgreSQL OLTP master tables through Delta Lake speed-layer sinks, dbt staging views, and Gold DuckDB analytical marts.
+This document serves as the **living data dictionary and lineage specification** for the E-Commerce Medallion Lakehouse Platform (`projects/ecommerce`). It tracks every schema contract from raw Avro ingress and PostgreSQL OLTP master tables through Medallion Silver/DLQ Delta tables, compacted tumbling-window KPIs, dbt `delta_scan()` staging views, SCD Type 2 snapshots, and contracted Gold DuckDB analytical marts.
 
 ---
 
@@ -11,48 +11,41 @@ This document serves as the **living data dictionary and lineage specification**
 ```mermaid
 flowchart LR
   subgraph Ingress ["1. Event & OLTP Sources"]
-    Avro["Kafka: ecommerce_events<br/>(EcommerceEvent Avro)"]
+    Avro["Redpanda: ecommerce_events<br/>(EcommerceEvent Avro)"]
     PG_C["PostgreSQL: dim_customers"]
     PG_P["PostgreSQL: dim_products"]
   end
 
-  subgraph BronzeSilver ["2. Speed Layer & Parquet Bridge (output_data/)"]
-    S1["url_counts"]
-    S2["user_counts"]
-    S3["url_conversion"]
-    S4["category_sales"]
-    S5["product_sales"]
-    S6["cart_metrics"]
-    S7["session_funnels"]
-    S8["top_urls_per_user"]
-    P_C["dim_customers.parquet"]
-    P_P["dim_products.parquet"]
+  subgraph SilverDLQ ["2. Medallion Silver, DLQ & Tumbling KPIs (output_data/)"]
+    SILVER["silver_ecommerce_events<br/>(Delta, event_date Partitioned)"]
+    DLQ["quarantine_events<br/>(Delta DLQ)"]
+    KPIS["8 Compacted KPI Delta Tables<br/>(10s Tumbling + 900s Sessions)"]
+    P_C["dim_customers.parquet (ZSTD)"]
+    P_P["dim_products.parquet (ZSTD)"]
   end
 
-  subgraph Gold ["3. Gold Warehouse Marts (ecommerce.duckdb)"]
-    M1["daily_top_urls"]
-    M2["daily_url_conversion"]
-    M3["daily_category_sales"]
+  subgraph Gold ["3. Staging, SCD2 & Contracted Gold Marts (ecommerce.duckdb)"]
+    SNAP["snap_customers & snap_products (SCD2)"]
+    M1["daily_top_urls (Incremental)"]
+    M2["daily_url_conversion (Incremental + Contract)"]
+    M3["daily_category_sales (Incremental + Contract)"]
     M4["monthly_category_sales"]
-    M5["cumulative_users"]
+    M5["cumulative_users (Contract)"]
     M6["new_vs_returning_users"]
     M7["daily_top_urls_per_user"]
-    M8["customer_segment_spending"]
-    M9["brand_category_performance"]
-    MON["last_ingest (Monitor)"]
+    M8["customer_segment_spending (SCD2 + Contract)"]
+    M9["brand_category_performance (SCD2 + Contract)"]
+    MON["Monitors: last_ingest, gx_quality_checks,<br/>pydeequ_quality_checks, quarantine_summary"]
   end
 
-  Avro --> S1 & S2 & S3 & S4 & S5 & S6 & S7 & S8
-  PG_C --> P_C
-  PG_P --> P_P
+  Avro --> SILVER & DLQ
+  SILVER --> KPIS
+  PG_C --> P_C --> SNAP
+  PG_P --> P_P --> SNAP
 
-  S1 --> M1 & MON
-  S3 --> M2
-  S4 --> M3 & M4
-  S8 --> M5 & M6 & M7
-  S5 --> M8 & M9
-  P_C --> M8
-  P_P --> M9
+  KPIS --> M1 & M2 & M3 & M4 & M5 & M6 & M7 & M8 & M9 & MON
+  SNAP --> M8 & M9
+  DLQ --> MON
 ```
 
 ---
@@ -78,77 +71,88 @@ flowchart LR
 
 ## 4. PostgreSQL OLTP Dimension Tables (`oltp_sync/`)
 
-**Source**: PostgreSQL 16 (`dim_customers`, `dim_products`) $\rightarrow$ exported via `pyarrow` to `output_data/dim_customers/` and `output_data/dim_products/`.
+**Source**: PostgreSQL 16 (`dim_customers`, `dim_products`) $\rightarrow$ exported directly via zero-Pandas `pyarrow.parquet` (ZSTD) to `output_data/dim_customers/` and `output_data/dim_products/`.
 
 ### 4.1 `dim_customers`
-| Column              | Postgres Type | Parquet / dbt Type | Description                                          |
+| Column              | Postgres Type | PyArrow / dbt Type | Description                                          |
 | :------------------ | :------------ | :----------------- | :--------------------------------------------------- |
-| `user_id`           | `VARCHAR(64)` | `varchar`          | Primary key (`user_101`–`user_108`).                  |
-| `segment`           | `VARCHAR(64)` | `varchar`          | Customer tier (`Enterprise`, `Consumer`, `SMB`).     |
-| `region`            | `VARCHAR(64)` | `varchar`          | Geographic market (`North America`, `Europe`, `Asia-Pacific`). |
-| `registration_date` | `DATE`        | `date`             | Account creation date.                               |
+| `user_id`           | `VARCHAR(64)` | `string` / `varchar` | Primary key (`user_101`–`user_108`).                |
+| `segment`           | `VARCHAR(64)` | `string` / `varchar` | Customer tier (`Enterprise`, `Consumer`, `SMB`).     |
+| `region`            | `VARCHAR(64)` | `string` / `varchar` | Geographic market (`North America`, `Europe`, `Asia-Pacific`). |
+| `registration_date` | `DATE`        | `string` / `date`    | Account creation date.                               |
 
 ### 4.2 `dim_products`
-| Column       | Postgres Type    | Parquet / dbt Type | Description                                   |
+| Column       | Postgres Type    | PyArrow / dbt Type | Description                                   |
 | :----------- | :--------------- | :----------------- | :-------------------------------------------- |
-| `product_id` | `VARCHAR(64)`    | `varchar`          | Primary key (`prod_01`–`prod_05`).            |
-| `category`   | `VARCHAR(64)`    | `varchar`          | Product category (`electronics`, `apparel`, `home`). |
-| `brand`      | `VARCHAR(64)`    | `varchar`          | Brand name (`ApexTech`, `StrideWear`, `CozyNest`, `NovaMobile`, `ErgoCraft`). |
-| `unit_price` | `NUMERIC(10, 2)` | `double`           | Catalog unit price.                           |
+| `product_id` | `VARCHAR(64)`    | `string` / `varchar` | Primary key (`prod_01`–`prod_05`).          |
+| `category`   | `VARCHAR(64)`    | `string` / `varchar` | Product category (`electronics`, `apparel`, `home`). |
+| `brand`      | `VARCHAR(64)`    | `string` / `varchar` | Brand name (`ApexTech`, `StrideWear`, `CozyNest`, `NovaMobile`, `ErgoCraft`). |
+| `unit_price` | `NUMERIC(10, 2)` | `float64` / `double` | Catalog unit price.                         |
 
 ---
 
-## 5. Speed Layer Delta Lake Tables (`output_data/`)
+## 5. Medallion Silver, Quarantine DLQ & KPI Delta Tables (`output_data/`)
 
-All sliding-window sinks compute `10s` windows sliding every `5s` (`yyyy-MM-dd HH:mm:ss` string bounds); `session_funnels` uses dynamic `900s` session windows.
+All additive KPI sinks compute non-overlapping `10s` tumbling windows (`window_duration == slide_duration == "10 seconds"`) over `silver_ecommerce_events`; `session_funnels` uses dynamic `900s` session windows.
 
-| Delta Table         | Key / Grouping Columns                           | Metric Columns                                                             |
-| :------------------ | :----------------------------------------------- | :------------------------------------------------------------------------- |
-| `url_counts`        | `window_start`, `window_end`, `url`, `event_type`| `count` (`long`)                                                           |
-| `user_counts`       | `window_start`, `window_end`, `user_id`          | `total_events` (`long`)                                                    |
-| `url_conversion`    | `window_start`, `window_end`, `url`              | `view_count`, `purchase_count`, `conversion_rate`                          |
-| `category_sales`    | `window_start`, `window_end`, `category`         | `revenue` (`double`), `units` (`long`)                                     |
-| `product_sales`     | `window_start`, `window_end`, `user_id`, `product_id`, `category` | `revenue` (`double`), `units` (`long`)                    |
-| `cart_metrics`      | `window_start`, `window_end`, `url`              | `view_count`, `add_to_cart_count`, `purchase_count`, `add_to_cart_rate`, `cart_abandonment` |
-| `session_funnels`   | `session_start`, `session_end`, `user_id`        | `has_view` (`bool`), `has_add` (`bool`), `has_purchase` (`bool`)           |
-| `top_urls_per_user` | `window_start`, `window_end`, `user_id`, `url`   | `count` (`long`)                                                           |
+| Delta Table               | Partition / Key Columns                                   | Additional / Metric Columns                                                              |
+| :------------------------ | :-------------------------------------------------------- | :--------------------------------------------------------------------------------------- |
+| `silver_ecommerce_events` | Partitioned by `event_date` (`date`)                      | All validated `EcommerceEvent` columns + `ingested_at` (`timestamp`)                     |
+| `quarantine_events`       | Unpartitioned DLQ                                         | Raw `EcommerceEvent` columns + `quarantine_reason` (`string`) + `ingested_at`            |
+| `url_counts`              | `window_start`, `window_end`, `url`, `event_type`         | `count` (`long`)                                                                         |
+| `user_counts`             | `window_start`, `window_end`, `user_id`                   | `total_events` (`long`)                                                                  |
+| `url_conversion`          | `window_start`, `window_end`, `url`                       | `view_count`, `purchase_count`, `conversion_rate`                                        |
+| `category_sales`          | `window_start`, `window_end`, `category`                  | `revenue` (`double`), `units` (`long`)                                                   |
+| `product_sales`           | `window_start`, `window_end`, `user_id`, `product_id`, `category` | `revenue` (`double`), `units` (`long`)                                           |
+| `cart_metrics`            | `window_start`, `window_end`, `url`                       | `view_count`, `add_to_cart_count`, `purchase_count`, `add_to_cart_rate`, `cart_abandonment` |
+| `session_funnels`         | `session_start`, `session_end`, `user_id`                 | `has_view` (`bool`), `has_add` (`bool`), `has_purchase` (`bool`)                         |
+| `top_urls_per_user`       | `window_start`, `window_end`, `user_id`, `url`            | `count` (`long`)                                                                         |
 
 ---
 
-## 6. Batch Layer: dbt Staging Views & Gold Marts (`ecommerce.duckdb`)
+## 6. Batch Layer: dbt Staging Views, SCD2 Snapshots & Gold Marts (`ecommerce.duckdb`)
 
 ### 6.1 Staging Views (`models/staging/` — `materialized='view'`)
 
-Every staging view reads live Parquet files via `{{ get_stream_path('<table_name>') }}` and applies explicit SQL type casts:
+All Delta-backed staging views use `{{ get_delta_path('<table_name>') }}` (`delta_scan(...)` honoring `_delta_log`), while OLTP Parquet snapshots use `{{ get_parquet_path('<table_name>') }}`:
 
-| Staging View        | Source Table        | Tested `not_null` Columns                   |
-| :------------------ | :------------------ | :------------------------------------------ |
-| `cart_metrics`      | `cart_metrics`      | `url`, `window_start`                       |
-| `category_sales`    | `category_sales`    | `category`, `revenue`                       |
-| `dim_customers`     | `dim_customers`     | `user_id`, `segment`                        |
-| `dim_products`      | `dim_products`      | `product_id`, `brand`                       |
-| `product_sales`     | `product_sales`     | `user_id`, `product_id`, `revenue`          |
-| `session_funnels`   | `session_funnels`   | `user_id`, `session_start`                  |
-| `top_urls_per_user` | `top_urls_per_user` | `user_id`, `url`                            |
-| `url_conversion`    | `url_conversion`    | `url`, `conversion_rate`                    |
-| `url_counts`        | `url_counts`        | `url`, `event_type`                         |
+| Staging View              | Source Macro        | Tested Columns                                             |
+| :------------------------ | :------------------ | :--------------------------------------------------------- |
+| `silver_ecommerce_events` | `get_delta_path`    | `user_id`, `url`, `event_type` (`accepted_values`), `event_time` |
+| `quarantine_events`       | `get_delta_path`    | `quarantine_reason`                                        |
+| `cart_metrics`            | `get_delta_path`    | `url`, `window_start`                                      |
+| `category_sales`          | `get_delta_path`    | `category`, `revenue`                                      |
+| `product_sales`           | `get_delta_path`    | `user_id`, `product_id`, `revenue`                         |
+| `session_funnels`         | `get_delta_path`    | `user_id`, `session_start`                                 |
+| `top_urls_per_user`       | `get_delta_path`    | `user_id`, `url`                                           |
+| `url_conversion`          | `get_delta_path`    | `url`, `conversion_rate`                                   |
+| `url_counts`              | `get_delta_path`    | `url`, `event_type`                                        |
+| `dim_customers`           | `get_parquet_path`  | `user_id`, `segment`                                       |
+| `dim_products`            | `get_parquet_path`  | `product_id`, `brand`                                      |
 
-### 6.2 Gold Analytical Marts (`models/marts/` — `materialized='table'`)
+### 6.2 SCD Type 2 Snapshots (`snapshots/` — `target_schema='snapshots'`)
 
-| Gold Table                   | Upstream Sources                      | Columns & Grain                                                                     |
-| :--------------------------- | :------------------------------------ | :---------------------------------------------------------------------------------- |
-| `daily_category_sales`       | `category_sales`                      | `sales_date`, `category`, `daily_revenue`, `daily_units`                            |
-| `monthly_category_sales`     | `category_sales`                      | `sales_month`, `category`, `monthly_revenue`, `monthly_units`                       |
-| `daily_url_conversion`       | `url_conversion`                      | `conversion_date`, `url`, `total_views`, `total_purchases`, `avg_conversion_rate`   |
-| `daily_top_urls`             | `url_counts`                          | `activity_date`, `url`, `event_type`, `total_events`                                |
-| `daily_top_urls_per_user`    | `top_urls_per_user`                   | `activity_date`, `user_id`, `url`, `total_visits`, `rank_num` ($\le 5$ per day/user)|
-| `cumulative_users`           | `top_urls_per_user`                   | `cohort_date`, `new_users`, `cumulative_users` (running window sum)                 |
-| `new_vs_returning_users`     | `top_urls_per_user`                   | `activity_date`, `new_users`, `returning_users`, `total_active_users`               |
-| `customer_segment_spending`  | `product_sales` $\bowtie$ `dim_customers` | `user_id`, `segment`, `region`, `total_revenue`, `total_units`, `purchase_windows` |
-| `brand_category_performance` | `product_sales` $\bowtie$ `dim_products`  | `brand`, `category`, `total_revenue`, `total_units`, `avg_unit_price`              |
+- **`snap_customers`**: `unique_key='user_id'`, `strategy='check'`, `check_cols=['segment', 'region']`, `invalidate_hard_deletes=True`.
+- **`snap_products`**: `unique_key='product_id'`, `strategy='check'`, `check_cols=['category', 'brand', 'unit_price']`, `invalidate_hard_deletes=True`.
 
-### 6.3 Freshness & Data Quality Monitors (`models/monitors/` — `materialized='view'`)
+### 6.3 Gold Analytical Marts (`models/marts/`)
 
-- **`last_ingest`**: Computes `latest_stream_window` (`max(window_end)` from `url_counts`), `batch_processed_at` (`current_timestamp`), and `pipeline_latency` (`age(current_timestamp, max(window_end))`).
-- **`gx_quality_checks`**: Monitor view over `quality_reports/gx_checks.parquet` exposing `engine`, `generated_at`, `overall_success`, `suite_name`, `suite_success`, `expectation_type`, `column_name`, `check_success`, and `unexpected_count`.
-- **`pydeequ_quality_checks`**: Monitor view over `pydeequ_metrics/pydeequ_checks.parquet` exposing `engine`, `generated_at`, `row_count`, `overall_status`, `check_name`, `check_level`, `constraint_name`, `constraint_status`, and `constraint_message`.
+| Gold Table                   | Materialization / Contract                  | Columns & Grain                                                                     |
+| :--------------------------- | :------------------------------------------ | :---------------------------------------------------------------------------------- |
+| `daily_category_sales`       | `incremental` (`delete+insert`) + Contract  | `sales_date` (`date`), `category` (`varchar`), `daily_revenue` (`double`), `daily_units` (`bigint`) |
+| `monthly_category_sales`     | `table`                                     | `sales_month`, `category`, `monthly_revenue`, `monthly_units`                       |
+| `daily_url_conversion`       | `incremental` (`delete+insert`) + Contract  | `conversion_date` (`date`), `url` (`varchar`), `total_views` (`bigint`), `total_purchases` (`bigint`), `avg_conversion_rate` (`double`) |
+| `daily_top_urls`             | `incremental` (`delete+insert`)             | `activity_date`, `url`, `event_type`, `total_events`                                |
+| `daily_top_urls_per_user`    | `table`                                     | `activity_date`, `user_id`, `url`, `total_visits`, `rank_num` ($\le 5$ per day/user)|
+| `cumulative_users`           | `table` + Contract                          | `cohort_date` (`date`), `new_users` (`bigint`), `cumulative_users` (`bigint`)       |
+| `new_vs_returning_users`     | `table`                                     | `activity_date`, `new_users`, `returning_users`, `total_active_users`               |
+| `customer_segment_spending`  | `table` + SCD2 Join + Contract              | `user_id`, `segment`, `region`, `total_revenue`, `total_units`, `purchase_windows`  |
+| `brand_category_performance` | `table` + SCD2 Join + Contract              | `brand`, `category`, `total_revenue`, `total_units`, `avg_unit_price`               |
+
+### 6.4 Materialized Freshness & Quality Monitors (`models/monitors/` — `materialized='table'`)
+
+Materialized as self-contained tables inside `ecommerce.duckdb` so atomic WAP promotion serves all Superset charts without external file dependencies:
+- **`last_ingest`**: `latest_stream_window`, `batch_processed_at`, and `pipeline_latency`.
+- **`gx_quality_checks`**: Materialized snapshot of `quality_reports/gx_checks.parquet`.
+- **`pydeequ_quality_checks`**: Materialized snapshot of `pydeequ_metrics/pydeequ_checks.parquet`.
+- **`quarantine_summary`**: Aggregated DLQ counts by `quarantine_reason` and `latest_quarantined_at` from `quarantine_events`.

@@ -1,4 +1,4 @@
-.PHONY: help build up down restart logs status clean
+.PHONY: help build up down restart logs status clean prod-build prod-up prod-down
 
 help:
 	@echo "Available orchestration commands:"
@@ -9,9 +9,12 @@ help:
 	@echo "  make logs        - Follow logs from all orchestration containers"
 	@echo "  make status      - Check container status and health"
 	@echo "  make clean       - Stop containers and remove volumes"
+	@echo "  make prod-up     - Start unified low-RAM production stack (Redpanda + Airflow + Superset)"
+	@echo "  make prod-down   - Stop unified low-RAM production stack"
 
 ENV_FILE := ../../../.env
 COMPOSE := docker compose --env-file $(ENV_FILE)
+PROD_COMPOSE := docker compose --env-file $(ENV_FILE) -f docker-compose.prod.yml
 
 build:
 	$(COMPOSE) build
@@ -32,3 +35,12 @@ status:
 
 clean:
 	$(COMPOSE) down -v
+
+prod-build:
+	$(PROD_COMPOSE) build
+
+prod-up:
+	$(PROD_COMPOSE) up -d
+
+prod-down:
+	$(PROD_COMPOSE) down

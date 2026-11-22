@@ -9,4 +9,4 @@ select
   cast(purchase_count as integer) as purchase_count,
   cast(add_to_cart_rate as double) as add_to_cart_rate,
   cast(cart_abandonment as double) as cart_abandonment
-from {{ get_stream_path('cart_metrics') }}
+from {{ get_delta_path('cart_metrics') }}

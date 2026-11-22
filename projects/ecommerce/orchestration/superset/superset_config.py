@@ -65,3 +65,8 @@ FEATURE_FLAGS = {
     "DASHBOARD_CROSS_FILTERS": True,
     "EMBEDDABLE_CHARTS": True,
 }
+
+# Optional read-only public guest access for hosted portfolio demos
+if os.environ.get("SUPERSET_PUBLIC_READONLY", "false").lower() in ("true", "1", "yes"):
+    PUBLIC_ROLE_LIKE = "Gamma"
+    AUTH_ROLE_PUBLIC = "Public"

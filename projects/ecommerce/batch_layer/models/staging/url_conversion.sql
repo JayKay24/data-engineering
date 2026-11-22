@@ -7,4 +7,4 @@ select
   cast(view_count     as integer) as view_count,
   cast(purchase_count as integer) as purchase_count,
   cast(conversion_rate as double) as conversion_rate
-from {{ get_stream_path('url_conversion') }}
+from {{ get_delta_path('url_conversion') }}

@@ -6,6 +6,60 @@ from pyspark.sql.functions import col, date_format, to_timestamp, window
 
 from projects.common.kafka_avro import get_abris_from_avro_column
 
+VALID_EVENT_TYPES = ("view", "add_to_cart", "purchase")
+
+
+def split_valid_and_quarantine_events(
+    df: DataFrame,
+    timestamp_field: str = "event_time",
+) -> tuple[DataFrame, DataFrame]:
+    """Split parsed events into validated Silver rows and quarantined DLQ rows.
+
+    Evaluates domain contract rules (non-null required identifiers/timestamps,
+    allowed ``event_type`` values, and non-negative ``price`` when present).
+    Invalid records are routed to the quarantine DataFrame with an explicit
+    ``quarantine_reason`` column rather than silently dropped or crashing the
+    stream.
+
+    Args:
+        df: Parsed e-commerce event DataFrame.
+        timestamp_field: Name of the event timestamp column used to derive
+            ``event_date`` partitioning.
+
+    Returns:
+        Tuple of ``(valid_df, quarantine_df)``.
+    """
+    valid_user = col("user_id").isNotNull() & (F.trim(col("user_id")) != "")
+    valid_url = col("url").isNotNull() & (F.trim(col("url")) != "")
+    valid_time = col(timestamp_field).isNotNull()
+    valid_event_type = col("event_type").isin(*VALID_EVENT_TYPES)
+    valid_price = col("price").isNull() | (col("price") >= F.lit(0.0))
+
+    is_valid = valid_user & valid_url & valid_time & valid_event_type & valid_price
+
+    # Annotate failure reasons cleanly so downstream DLQ monitors can group anomalies.
+    reasons = F.concat_ws(
+        ",",
+        F.when(~valid_user, F.lit("missing_user_id")),
+        F.when(~valid_url, F.lit("missing_url")),
+        F.when(~valid_time, F.lit("invalid_event_time")),
+        F.when(~valid_event_type, F.lit("invalid_event_type")),
+        F.when(~valid_price, F.lit("negative_price")),
+    )
+
+    ingested_at = F.current_timestamp()
+    valid_df = (
+        df.filter(is_valid)
+        .withColumn("event_date", F.to_date(col(timestamp_field)))
+        .withColumn("ingested_at", ingested_at)
+    )
+    quarantine_df = (
+        df.filter(~is_valid)
+        .withColumn("quarantine_reason", reasons)
+        .withColumn("ingested_at", ingested_at)
+    )
+    return valid_df, quarantine_df
+
 
 def build_parsed_stream(
     spark: SparkSession,
@@ -48,7 +102,7 @@ def aggregate_url_counts(
     df: DataFrame,
     timestamp_field: str = "event_time",
     window_duration: str = "10 seconds",
-    slide_duration: str = "5 seconds",
+    slide_duration: str = "10 seconds",
 ) -> DataFrame:
     """Calculate sliding-window event counts grouped by URL and event type.
 
@@ -83,7 +137,7 @@ def aggregate_user_activity(
     df: DataFrame,
     timestamp_field: str = "event_time",
     window_duration: str = "10 seconds",
-    slide_duration: str = "5 seconds",
+    slide_duration: str = "10 seconds",
 ) -> DataFrame:
     """Calculate sliding-window event counts grouped by ``user_id``.
 
@@ -116,7 +170,7 @@ def aggregate_url_conversion(
     df: DataFrame,
     timestamp_field: str = "event_time",
     window_duration: str = "10 seconds",
-    slide_duration: str = "5 seconds",
+    slide_duration: str = "10 seconds",
 ) -> DataFrame:
     """Calculate sliding-window conversion rate (purchases / views) per URL.
 
@@ -161,7 +215,7 @@ def aggregate_category_sales(
     df: DataFrame,
     timestamp_field: str = "event_time",
     window_duration: str = "10 seconds",
-    slide_duration: str = "5 seconds",
+    slide_duration: str = "10 seconds",
 ) -> DataFrame:
     """Aggregate purchase revenue and unit volume per product category.
 
@@ -199,7 +253,7 @@ def aggregate_cart_metrics(
     df: DataFrame,
     timestamp_field: str = "event_time",
     window_duration: str = "10 seconds",
-    slide_duration: str = "5 seconds",
+    slide_duration: str = "10 seconds",
 ) -> DataFrame:
     """Calculate add-to-cart rate and cart abandonment rate by URL.
 
@@ -297,7 +351,7 @@ def aggregate_top_urls_per_user(
     df: DataFrame,
     timestamp_field: str = "event_time",
     window_duration: str = "10 seconds",
-    slide_duration: str = "5 seconds",
+    slide_duration: str = "10 seconds",
 ) -> DataFrame:
     """Compute windowed user-URL visit counts for Top-N ranking.
 
@@ -332,7 +386,7 @@ def aggregate_product_sales(
     df: DataFrame,
     timestamp_field: str = "event_time",
     window_duration: str = "10 seconds",
-    slide_duration: str = "5 seconds",
+    slide_duration: str = "10 seconds",
 ) -> DataFrame:
     """Aggregate purchase revenue and units by user, product, and category.
 

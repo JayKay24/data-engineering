@@ -16,6 +16,7 @@ timeline
   Phase 5 : Great Expectations & PyDeequ Quality : Avro Schema Registry & ABRiS (PRs #11–#13)
   Phase 6 : Real-Time Clickstream & E-Commerce Lambda Architecture : Airflow & Streamlit (PRs #14–#16)
   Phase 7 : Monorepo Consolidation into projects/ecommerce : Pants-Pinned Dockerfiles (PRs #24–#25)
+  Phase 8 : Medallion Silver/DLQ, Redpanda, delta_scan, WAP, SCD2, Cosmos & CI : Low-RAM Production Hosting
 ```
 
 ---
@@ -79,3 +80,16 @@ timeline
   - Standardized Google-style docstrings, type hints, and inline comments across `oltp_sync/sync_dimensions.py`, `quality/validate_ecommerce.py`, and `cloud_sync/export_to_gcp.py`.
   - Brought the GitHub Wiki under version control in `docs/wiki/` with automated link/anchor/Mermaid validation (`docs/validate_wiki.py`) and GitHub Actions mirror synchronization (`.github/workflows/wiki-sync.yml`) to `data-engineering.wiki.git` on pushes to `develop` and `master`.
   - Replaced Streamlit & Plotly (`orchestration/viz/`) with **Apache Superset `6.1.0`** (`orchestration/superset/`) backed by shared PostgreSQL 16, Redis 7 caching, read-only `duckdb-engine`, flat Parquet quality monitor views (`gx_quality_checks`, `pydeequ_quality_checks`), and Git-versioned Dashboards-as-Code YAML assets.
+
+---
+
+## 🏗️ Phase 8: Production-Ready Medallion Modernization (`feat/production-medallion-modernization`)
+
+- **Correctness & Medallion Lakehouse Refactor**:
+  - Replaced the 8-query Kafka fan-out with a single cached `foreachBatch` Spark consumer writing date-partitioned `silver_ecommerce_events` and `quarantine_events` DLQ tables with live PyDeequ verification, and fixed 2x revenue double-counting by adopting non-overlapping `10s` tumbling windows.
+  - Enabled DuckDB's native `delta` extension (`delta_scan()`) in `profiles.yml` and `get_stream_path.sql` so dbt never reads tombstoned Delta Parquet files, materialized `models/monitors/` as tables, and introduced `wap_duckdb.py` for atomic Write-Audit-Publish DuckDB promotion.
+- **Cost & Memory Optimization**:
+  - Replaced ZooKeeper + Confluent Kafka + Schema Registry with single-binary **Redpanda (`v24.2.11`, 350 MB RAM)**, added `--mode available-now` incremental Spark catch-up, refactored `oltp_sync` to zero-Pandas PyArrow ZSTD export, and created `orchestration/docker-compose.prod.yml` (<2.6 GB RAM) with optional `SUPERSET_PUBLIC_READONLY` and Cloudflare Tunnel.
+- **Senior DE Capabilities, CI & IaC**:
+  - Added dbt SCD Type 2 snapshots (`snap_customers`, `snap_products`), incremental (`delete+insert`) Gold marts with enforced Model Contracts (`contract: {enforced: true}`), and native dbt `unit_tests.yml`.
+  - Integrated **Astronomer Cosmos** `DbtTaskGroup` serialized on `duckdb_write_pool`, updated `export_to_gcp.py` for compacted GCS uploads + partitioned/clustered BigQuery loads with a `100 MB` query guardrail, added `infra/terraform/` GCP IaC, and built a full `./pants test ::` Pytest suite wired into `.github/workflows/ci.yml`.

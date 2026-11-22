@@ -1,0 +1,62 @@
+unit_tests:
+  - name: test_daily_category_sales_exact_sum
+    model: daily_category_sales
+    overrides:
+      macros:
+        is_incremental: false
+    given:
+      - input: ref('category_sales')
+        format: sql
+        rows: |
+          select timestamp '2026-09-01 10:00:00' as window_start, timestamp '2026-09-01 10:00:10' as window_end, 'electronics'::varchar as category, 1200.0::double as revenue, 1::integer as units
+          union all
+          select timestamp '2026-09-01 10:00:10', timestamp '2026-09-01 10:00:20', 'electronics'::varchar, 800.0::double, 1::integer
+          union all
+          select timestamp '2026-09-01 10:00:00', timestamp '2026-09-01 10:00:10', 'apparel'::varchar, 85.0::double, 1::integer
+    expect:
+      format: sql
+      rows: |
+        select date '2026-09-01' as sales_date, 'electronics'::varchar as category, 2000.0::double as daily_revenue, 2::bigint as daily_units
+        union all
+        select date '2026-09-01', 'apparel'::varchar, 85.0::double, 1::bigint
+
+  - name: test_daily_url_conversion_zero_views_safe
+    model: daily_url_conversion
+    overrides:
+      macros:
+        is_incremental: false
+    given:
+      - input: ref('url_conversion')
+        format: sql
+        rows: |
+          select timestamp '2026-09-01 10:00:00' as window_start, timestamp '2026-09-01 10:00:10' as window_end, '/checkout'::varchar as url, 0::integer as view_count, 2::integer as purchase_count, 0.0::double as conversion_rate
+          union all
+          select timestamp '2026-09-01 10:00:00', timestamp '2026-09-01 10:00:10', '/products/shoes'::varchar, 4::integer, 1::integer, 0.25::double
+    expect:
+      format: sql
+      rows: |
+        select date '2026-09-01' as conversion_date, '/checkout'::varchar as url, 0::bigint as total_views, 2::bigint as total_purchases, 0.0::double as avg_conversion_rate
+        union all
+        select date '2026-09-01', '/products/shoes'::varchar, 4::bigint, 1::bigint, 0.25::double
+
+  - name: test_customer_segment_spending_scd2_point_in_time
+    model: customer_segment_spending
+    given:
+      - input: ref('product_sales')
+        format: sql
+        rows: |
+          select timestamp '2026-09-01 10:00:00' as window_start, timestamp '2026-09-01 10:00:10' as window_end, 'user_103'::varchar as user_id, 'prod_03'::varchar as product_id, 'home'::varchar as category, 45.0::double as revenue, 1::integer as units
+          union all
+          select timestamp '2026-09-10 10:00:00', timestamp '2026-09-10 10:00:10', 'user_103'::varchar, 'prod_03'::varchar, 'home'::varchar, 100.0::double, 2::integer
+      - input: ref('snap_customers')
+        format: sql
+        rows: |
+          select 'user_103'::varchar as user_id, 'SMB'::varchar as segment, 'North America'::varchar as region, date '2025-06-10' as registration_date, timestamp '2026-09-01 00:00:00' as dbt_valid_from, timestamp '2026-09-05 00:00:00' as dbt_valid_to
+          union all
+          select 'user_103'::varchar, 'Enterprise'::varchar, 'North America'::varchar, date '2025-06-10', timestamp '2026-09-05 00:00:00', null::timestamp
+    expect:
+      format: sql
+      rows: |
+        select 'user_103'::varchar as user_id, 'Enterprise'::varchar as segment, 'North America'::varchar as region, 100.0::double as total_revenue, 2::bigint as total_units, 1::bigint as purchase_windows
+        union all
+        select 'user_103'::varchar, 'SMB'::varchar, 'North America'::varchar, 45.0::double, 1::bigint, 1::bigint

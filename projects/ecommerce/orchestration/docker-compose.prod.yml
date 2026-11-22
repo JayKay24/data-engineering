@@ -1,0 +1,161 @@
+# Low-RAM (<2.6 GB) unified production Docker Compose stack combining Redpanda,
+# tuned Postgres 16 + Redis 7, Airflow + availableNow Spark + Cosmos, Superset
+# (with optional public read-only guest access), and optional Cloudflare Tunnel.
+
+x-airflow-prod-env: &airflow_prod_env
+  AIRFLOW__CORE__EXECUTOR: LocalExecutor
+  AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+  AIRFLOW__WEBSERVER__RBAC: "true"
+  AIRFLOW__WEBSERVER__WORKERS: "1"
+  AIRFLOW__SCHEDULER__DAG_DIR_LIST_INTERVAL: "30"
+  AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "false"
+  AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY}
+
+services:
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v24.2.11
+    command:
+      - redpanda
+      - start
+      - --smp=1
+      - --memory=350M
+      - --reserve-memory=0M
+      - --overprovisioned
+      - --node-id=0
+      - --kafka-addr=internal://0.0.0.0:19092,external://0.0.0.0:9092
+      - --advertise-kafka-addr=internal://redpanda:19092,external://localhost:9092
+      - --schema-registry-addr=internal://0.0.0.0:8081,external://0.0.0.0:8081
+      - --rpc-addr=redpanda:33145
+      - --advertise-rpc-addr=redpanda:33145
+    volumes:
+      - prod_redpanda_data:/var/lib/redpanda/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "rpk cluster health | grep -E 'Healthy:.+true' && curl -sf http://localhost:8081/subjects",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    command: ["postgres", "-c", "shared_buffers=128MB", "-c", "max_connections=60"]
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-airflow}
+      POSTGRES_DB: airflow
+    volumes:
+      - prod_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow -d airflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--maxmemory", "64mb", "--maxmemory-policy", "allkeys-lru"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  airflow:
+    build:
+      context: ../../..
+      dockerfile: projects/ecommerce/orchestration/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redpanda:
+        condition: service_healthy
+    environment:
+      <<: *airflow_prod_env
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:${POSTGRES_PASSWORD:-airflow}@postgres:5432/airflow
+      PYTHONPATH: /opt/repo
+      CLICK_STREAM_OUTPUT_PREFIX: /opt/project/output_data
+      SPARK_OUTPUT_BASE_DIR: /opt/project/output_data
+      SPARK_CHECKPOINT_BASE_DIR: /opt/project/checkpoints
+      DBT_PROJ_DIR: /opt/project/batch_layer
+      DUCKDB_PATH: /opt/project/batch_layer/data/ecommerce.duckdb
+      DUCKDB_SERVING_PATH: /opt/project/batch_layer/data/ecommerce.duckdb
+      DUCKDB_STAGING_PATH: /opt/project/batch_layer/data/ecommerce_staging.duckdb
+      ECOMMERCE_CONFIG_PATH: /opt/project/streaming_layer/config/ecommerce_config.yml
+      ECOMMERCE_EVENTS_PATH: /opt/project/streaming_layer/input_data/ecommerce_events.json
+      SPARK_IN_AIRFLOW: "true"
+      PRODUCE_SYNTHETIC_EVENTS: ${PRODUCE_SYNTHETIC_EVENTS:-true}
+      KAFKA_BOOTSTRAP_SERVERS: redpanda:19092
+      SCHEMA_REGISTRY_URL: http://redpanda:8081
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: airflow
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-airflow}
+      GCP_SYNC_ENABLED: ${GCP_SYNC_ENABLED:-false}
+      GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT:-demo-data-project}
+      GCS_BUCKET: ${GCS_BUCKET:-demo-ecommerce-datalake}
+      BIGQUERY_DATASET: ${BIGQUERY_DATASET:-ecommerce_warehouse}
+    command: >
+      bash -lc "
+        airflow db init &&
+        airflow pools set duckdb_write_pool 1 'Serialize single-writer DuckDB dbt tasks' &&
+        airflow users create --role Admin --username admin --password ${AIRFLOW_ADMIN_PASSWORD:-admin} --firstname Admin --lastname User --email admin@example.com || true &&
+        airflow webserver -p 8080 &
+        exec airflow scheduler
+      "
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ../../..:/opt/repo
+      - ..:/opt/project
+      - ./dags:/opt/airflow/dags
+      - prod_spark_ivy:/opt/spark-ivy
+    restart: unless-stopped
+
+  superset:
+    build:
+      context: ../../..
+      dockerfile: projects/ecommerce/orchestration/superset/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      SUPERSET_SECRET_KEY: ${SUPERSET_SECRET_KEY:-ecommerce-superset-dev-secret-key-change-me}
+      SUPERSET_PUBLIC_READONLY: ${SUPERSET_PUBLIC_READONLY:-true}
+      GUNICORN_WORKERS: "2"
+      SUPERSET_DB_HOST: postgres
+      SUPERSET_DB_PORT: "5432"
+      SUPERSET_DB_NAME: superset
+      SUPERSET_DB_USER: airflow
+      SUPERSET_DB_PASSWORD: ${POSTGRES_PASSWORD:-airflow}
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      DUCKDB_PATH: /opt/project/batch_layer/data/ecommerce.duckdb
+    volumes:
+      - ..:/opt/project:ro
+    ports:
+      - "8088:8088"
+    restart: unless-stopped
+
+  cloudflared:
+    image: cloudflare/cloudflared:2024.11.1
+    profiles: ["tunnel"]
+    command: ["tunnel", "--no-autoupdate", "run"]
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
+    depends_on:
+      - superset
+    restart: unless-stopped
+
+volumes:
+  prod_redpanda_data:
+  prod_pgdata:
+  prod_spark_ivy:

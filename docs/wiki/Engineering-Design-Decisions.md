@@ -56,3 +56,20 @@ Building a unified Lambda Architecture across PySpark, Delta Lake, DuckDB, Postg
 - **Engineering Impact**: `projects/ecommerce/quality:validate` could not run locally on macOS via `./pants run`.
 - **Implemented Resolution** (`3rdparty/constraints.txt`, `pants.toml`):
   - Rather than polluting top-level `3rdparty/requirements.txt` with a transitive dependency, added `scipy<1.15.0` to `3rdparty/constraints.txt` and registered `[python.resolves_to_constraints_file] shared-lock = "3rdparty/constraints.txt"` in `pants.toml`. Regenerating `user_reqs.lock` pinned `scipy==1.14.1`, resolving the macOS loader crash cleanly.
+
+---
+
+### Decision 6: Astronomer Cosmos Parallelism vs. DuckDB Single-Writer File Locking
+
+- **The Ambiguity**: Astronomer Cosmos renders dbt staging views, SCD2 snapshots, and Gold marts as individual Airflow tasks. Under `LocalExecutor`, Airflow schedules independent dbt tasks concurrently in separate OS subprocesses, which would immediately trigger DuckDB `Could not set lock` write failures.
+- **Implemented Resolution** (`orchestration/docker-compose.yml`, `orchestration/dags/ecommerce_pipeline.py`, `wap_duckdb.py`):
+  1. Provisioned a single-slot Airflow pool (`airflow pools set duckdb_write_pool 1`) and attached `operator_args={"pool": "duckdb_write_pool"}` to `DbtTaskGroup` and `dbt_build_monitors`.
+  2. Isolated all dbt and Great Expectations execution inside `ecommerce_staging.duckdb` (`prepare_wap_staging_db`), promoting atomically via `CHECKPOINT;` + `os.replace()` (`publish_wap_duckdb`) so Apache Superset (`pool_recycle=30s`) never encounters write locks.
+
+---
+
+### Decision 7: Hermetic Pants Sandbox `HOME` & `pytest<9` Compatibility
+
+- **The Ambiguity**: Pants `2.22.0` strips `HOME` inside test sandboxes (causing DuckDB `INSTALL delta` to fail with `Can't find the home directory at ''`) and invokes `_pytest.config._console_main`, which was removed in `pytest 9.x`.
+- **Implemented Resolution** (`pants.toml`, `3rdparty/requirements.txt`, `projects/ecommerce/quality/validate_ecommerce.py`):
+  - Pinned `pytest>=8.0.0,<9.0.0` in `3rdparty/requirements.txt`, passed `["JAVA_HOME", "HOME"]` via `[test].extra_env_vars` in `pants.toml`, and added a defensive `SET home_directory` fallback in `_read_delta_via_duckdb` whenever `HOME` is unset in restricted runners.

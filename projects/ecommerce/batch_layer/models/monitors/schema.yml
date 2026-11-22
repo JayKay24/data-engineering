@@ -21,3 +21,12 @@ models:
       - name: constraint_status
         tests:
           - not_null
+  - name: quarantine_summary
+    description: "Summary of domain-invalid events routed to the quarantine Delta DLQ"
+    columns:
+      - name: quarantine_reason
+        tests:
+          - not_null
+      - name: quarantined_events
+        tests:
+          - not_null
