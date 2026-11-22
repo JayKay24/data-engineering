@@ -12,7 +12,7 @@ services:
       - --node-id=0
       - --kafka-addr=internal://0.0.0.0:19092,external://0.0.0.0:9092
       - --advertise-kafka-addr=internal://redpanda:19092,external://localhost:9092
-      - --schema-registry-addr=internal://0.0.0.0:8081,external://0.0.0.0:8081
+      - --schema-registry-addr=0.0.0.0:8081
       - --rpc-addr=redpanda:33145
       - --advertise-rpc-addr=redpanda:33145
     ports:
@@ -30,6 +30,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+      start_period: 15s
     restart: unless-stopped
 
 volumes:
