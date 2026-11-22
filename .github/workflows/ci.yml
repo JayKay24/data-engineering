@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - master
+  push:
+    branches:
+      - develop
+      - master
+
+jobs:
+  lint-and-validate:
+    name: Lint, Format, Superset & Wiki Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10.9
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10.9"
+
+      - name: Install Pants
+        uses: pantsbuild/actions/init-pants@v5
+
+      - name: Check formatting and lint with Ruff
+        run: ./pants lint ::
+
+      - name: Validate Superset Dashboards-as-Code YAML
+        run: ./pants run projects/ecommerce/orchestration/superset:package_assets
+
+      - name: Validate GitHub Wiki links & Mermaid fences
+        run: ./pants run docs:validate_wiki
+
+  unit-tests:
+    name: Python Unit Tests & dbt Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10.9
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10.9"
+
+      - name: Set up Java 17 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Pants
+        uses: pantsbuild/actions/init-pants@v5
+
+      - name: Run Pants pytest suite
+        run: ./pants test ::
+
+      - name: Run dbt unit tests
+        run: |
+          ./pants export --resolve=shared-lock
+          cd projects/ecommerce/batch_layer
+          DUCKDB_PATH=/tmp/ci_dbt_unit.duckdb ../../../dist/export/python/virtualenvs/shared-lock/3.10.9/bin/dbt test --select test_type:unit
+
+  terraform-validate:
+    name: Validate Terraform IaC
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Format check & validate Terraform
+        working-directory: infra/terraform
+        run: |
+          terraform fmt -check -recursive .
+          terraform init -backend=false
+          terraform validate

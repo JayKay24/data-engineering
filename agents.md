@@ -9,60 +9,41 @@ Welcome, Agent! This file serves as the source of truth for the codebase archite
 
 ## 1. Project Context & Architecture
 
-This repository is a **Python Data Engineering Monorepo** managed by the **Pants Build System**, centered on a unified **E-Commerce Real-Time Lambda Architecture** (`projects/ecommerce`) and shared platform utilities (`projects/common`).
+This repository is a **Python Data Engineering Monorepo** managed by the **Pants Build System**, centered on a unified **E-Commerce Medallion Lakehouse & Real-Time Streaming Platform** (`projects/ecommerce`) and shared platform utilities (`projects/common`).
 
 ### Core Stack
-* **Build System:** Pants (v2.22.0, with Python, Docker, and Ruff backends)
+* **Build & Test System:** Pants (v2.22.0, with Python, Pytest, Docker, and Ruff backends)
 * **Python Version:** strictly `3.10.9` (managed via `pyenv`)
 * **Linter/Formatter:** Ruff (integrated via Pants backend)
-* **Data Processing:** PySpark (`3.5.8`), Delta Lake (`3.2.0`), DuckDB, dbt-duckdb
-* **Streaming & Schema Governance:** Apache Kafka, Confluent Schema Registry, Avro, ABRiS
-* **OLTP & Cloud Storage:** PostgreSQL 16 (`psycopg2-binary`), Google Cloud Storage & BigQuery
-* **Data Quality:** Amazon PyDeequ (Spark layer) & Great Expectations (batch/Gold layer)
-* **Orchestration & BI:** Apache Airflow (`2.9.3`), Apache Superset (`6.1.0`), Redis (`7`), `duckdb-engine`, Docker
+* **Data Processing:** PySpark (`3.5.8`), Delta Lake (`3.2.0`), DuckDB (`1.5.6` with native `delta` extension), dbt (`1.12.x` + `dbt-duckdb`)
+* **Streaming & Schema Governance:** Redpanda (`v24.2`, Kafka API + Confluent-compatible Schema Registry), Avro, ABRiS
+* **OLTP & Cloud Storage:** PostgreSQL 16 (`psycopg2-binary`, zero-Pandas PyArrow export), Google Cloud Storage & BigQuery, Terraform / OpenTofu IaC (`infra/terraform/`)
+* **Data Quality:** Amazon PyDeequ (micro-batch Spark `foreachBatch` + Quarantine DLQ) & Great Expectations (live Silver Delta + WAP Gold warehouse)
+* **Orchestration & BI:** Apache Airflow (`2.9.3`), Astronomer Cosmos (`1.15.x`), Apache Superset (`6.1.0`), Redis (`7`), `duckdb-engine`, Docker
 
 ### Project Structure
 * `.github/pull_request_template.md`: Template for standardizing PR descriptions.
+* `.github/workflows/ci.yml`: CI pipeline running Ruff lint/format, `./pants test ::`, dbt unit tests, Superset YAML validation, Wiki validation, and Terraform validation.
 * `.github/workflows/wiki-sync.yml`: CI workflow validating `docs/wiki/` on PRs and mirroring changes to `data-engineering.wiki.git` on pushes to `develop` and `master`.
 * `.pre-commit-config.yaml`: Pre-commit hooks configuration to run `./pants fmt` and `./pants lint` locally.
 * `pyproject.toml`: Ruff linting rules enforcing Google-style docstrings (`D` / `D417`) via `./pants lint ::`.
 * `3rdparty/`: Dependency management (`requirements.txt`, Pants `user_reqs.lock`, `extract_lock_constraints.py` for lockfile-pinned Docker builds, and `BUILD`).
+* `infra/terraform/`: Declarative Free-Tier GCP IaC (7-day GCS lifecycle bucket, partitioned/clustered BigQuery dataset & tables, least-privilege IAM).
 * `docs/`: Version-controlled GitHub Wiki source (`docs/wiki/*.md`), zero-dependency link/anchor/Mermaid validator (`docs/validate_wiki.py`), and Pants `BUILD` (`docs:validate_wiki`).
 * `projects/common/`: Shared monorepo utilities.
   * `logger.py`: Centralized structured logging factory (`get_logger`).
   * `kafka_avro.py`: Shared Avro producer serialization, schema loader, delivery callbacks, and PySpark ABRiS deserialization.
-  * `docker/docker-compose.yml`: Shared Zookeeper, Kafka, and Confluent Schema Registry Compose setup.
+  * `docker/docker-compose.yml`: Lightweight single-binary Redpanda Compose stack (`:9092` Kafka + `:8081` Schema Registry).
   * `BUILD`: Pants build definition with `python_sources` target.
-* `projects/ecommerce/`: Unified E-Commerce Real-Time Lambda Architecture platform.
-  * `streaming_layer/`: PySpark Structured Streaming with Avro, Schema Registry, PyDeequ verification, and Delta Lake.
-    * `config/ecommerce_config.yml`: Configuration for Kafka, watermarking, sliding windows, and Delta Lake sinks.
-    * `schemas/ecommerce_event.avsc`: Avro schema contract for e-commerce user activity and purchase events.
-    * `input_data/ecommerce_events.json`: Sample raw e-commerce event stream dataset.
-    * `aggregations.py`: Spark sliding window, product sales, session funnel, and conversion KPI aggregations.
-    * `quality_checks.py`: Distributed Spark data quality verification using Amazon PyDeequ (`projects/ecommerce/streaming_layer:quality_checks`).
-    * `sinks.py`: Multi-table streaming and batch sink adapters for Delta Lake and console outputs.
-    * `ecommerce_producer.py`: Kafka Avro message producer script (`projects/ecommerce/streaming_layer:producer`).
-    * `ecommerce_aggregation_job.py`: PySpark Structured Streaming & batch orchestrator (`projects/ecommerce/streaming_layer:stream_job`).
-    * `BUILD`: Pants build definition with `python_sources`, `resources`, and `pex_binary` targets.
-  * `oltp_sync/`: PostgreSQL OLTP dimension management & Parquet export (`psycopg2-binary`, `pandas`, `pyarrow`).
-    * `config.py`: Thread-safe PostgreSQL connection pool factory.
-    * `sync_dimensions.py`: Seeds and extracts `dim_customers` and `dim_products` to Parquet (`projects/ecommerce/oltp_sync:sync_dimensions`).
-    * `BUILD`: Pants build definition (`lib`, `sync_dimensions`).
-  * `batch_layer/`: Modular SQL transformations, OLTP-enriched dimensional marts, and freshness monitors with dbt and DuckDB.
-    * `Dockerfile`, `docker-compose.yml`, `Makefile`, `BUILD`: Lockfile-pinned container runner (`make dbt-build`, `make query`, `projects/ecommerce/batch_layer:dbt_image`).
-    * `macros/`: Centralized `get_stream_path` SQL macro for dynamic Parquet pathing.
-    * `models/`: Staging views with column integrity tests, analytical & OLTP-enriched marts (`cumulative_users`, `daily_category_sales`, `daily_url_conversion`, `customer_segment_spending`, `brand_category_performance`), and freshness/quality monitors (`last_ingest`, `gx_quality_checks`, `pydeequ_quality_checks`).
-  * `quality/`: Batch and warehouse data quality gates using Great Expectations.
-    * `validate_ecommerce.py`: Validates raw events and DuckDB Gold marts (`projects/ecommerce/quality:validate`).
-    * `BUILD`: Pants build definition (`lib`, `validate`).
-  * `cloud_sync/`: Optional Google Cloud lakehouse and warehouse sync (`google-cloud-storage`, `google-cloud-bigquery`, `db-dtypes`).
-    * `config.py`: GCP client configuration for GCS and BigQuery.
-    * `export_to_gcp.py`: Uploads Parquet artifacts to GCS and loads Gold DuckDB marts to BigQuery (`projects/ecommerce/cloud_sync:export`).
-    * `BUILD`: Pants build definition (`lib`, `export`).
-  * `orchestration/`: Containerized workflow orchestration and executive business intelligence.
-    * `Dockerfile`, `docker-compose.yml`, `Makefile`, `BUILD`: Lockfile-pinned Airflow (LocalExecutor + Postgres 16), Redis 7, and Apache Superset 6.1.0 services (`make up`, `make down`, `make status`).
-    * `dags/ecommerce_pipeline.py` & `dags/BUILD`: Airflow DAG using `DeltaStreamSensor` to coordinate OLTP sync, dbt staging/marts/tests, Great Expectations validation, dbt monitor views, and optional GCP sync.
-    * `superset/`: Apache Superset configuration (`superset_config.py`), bootstrap (`bootstrap.sh`), Dashboards-as-Code YAML bundle (`assets/`), asset validator/packager (`package_assets.py`), lockfile-pinned `Dockerfile`, and `BUILD` (`package_assets`, `superset_image`).
+* `projects/ecommerce/`: Unified E-Commerce Medallion Lakehouse Platform.
+  * `duckdb_utils.py` & `wap_duckdb.py`: Lock-resilient read-only DuckDB snapshot reader and atomic Write-Audit-Publish (WAP) staging/promotion CLI (`projects/ecommerce:wap_duckdb`).
+  * `streaming_layer/`: Single-consumer PySpark `foreachBatch` Medallion Silver (`silver_ecommerce_events`) & Quarantine DLQ (`quarantine_events`), live PyDeequ verification, non-overlapping `10s` tumbling KPIs, and synthetic/file Redpanda producer (`--mode {available-now,streaming,batch}`).
+  * `oltp_sync/`: Zero-Pandas PostgreSQL OLTP dimension management & ZSTD PyArrow Parquet export (`--simulate-scd-change` supported).
+  * `batch_layer/`: `dbt-duckdb` transformations using ACID `delta_scan()` (`get_delta_path`), SCD Type 2 snapshots (`snap_customers`, `snap_products`), incremental & contract-enforced Gold marts, native dbt `unit_tests.yml`, and materialized monitor tables (`last_ingest`, `gx_quality_checks`, `pydeequ_quality_checks`, `quarantine_summary`).
+  * `quality/`: Great Expectations live Silver Delta, quarantine DLQ ratio, and staging Gold mart validation gates (`projects/ecommerce/quality:validate`).
+  * `cloud_sync/`: Optional GCP lakehouse sync exporting compacted ZSTD Gold Parquet snapshots to GCS and loading time-partitioned, clustered BigQuery tables with a `100 MB` query guardrail (`projects/ecommerce/cloud_sync:export`).
+  * `orchestration/`: Containerized Airflow 2.9 (`LocalExecutor` + `duckdb_write_pool` + Java 17/Spark `availableNow`) with Astronomer Cosmos `DbtTaskGroup`, Redis 7, Apache Superset 6.1.0 Dashboards-as-Code, and `docker-compose.prod.yml` for low-RAM (<2.6 GB) hosting.
+  * `tests/`: Hermetic Pants `pytest` suite covering PySpark aggregations/quarantine, WAP & DuckDB `delta_scan()`, OLTP/GX gates, BigQuery FinOps specs, Superset YAML validation, and Airflow Cosmos DAG parsing (`./pants test ::`).
 * `.venv`: A root-level symlink pointing to the current active Pants-generated virtual environment.
 
 ---
@@ -88,8 +69,8 @@ This project is bootstrapped to work seamlessly with VS Code / Antigravity IDE w
 ## 3. Mandatory Agent Rules
 
 1. **STRICTLY LOCAL SCOPE:** Do not write or modify any VS Code/IDE configurations outside the `data-engineering` project directory.
-2. **PANTS COMPLIANCE:** Always follow the target-based workflow for Pants commands (`./pants fmt ::`, `./pants lint ::`, `./pants package ::`, `./pants run <target>`).
-3. **SPARK COMPATIBILITY:** Run PySpark tasks using Java 17 via the `JAVA_HOME` configuration found in `.env`.
+2. **PANTS COMPLIANCE:** Always follow the target-based workflow for Pants commands (`./pants fmt ::`, `./pants lint ::`, `./pants test ::`, `./pants package ::`, `./pants run <target>`).
+3. **SPARK COMPATIBILITY:** Run PySpark tasks and `./pants test ::` using Java 17 via the `JAVA_HOME` configuration found in `.env`.
 4. **DOCUMENTATION & WIKI SYNCHRONIZATION:** Always synchronize `README.md` (including badges and project structure), `projects/ecommerce/README.md`, `docs/wiki/` (verified with `./pants run docs:validate_wiki`), and `AGENTS.md` whenever architectural, schema, dependency, or pipeline changes occur.
    * **Schemas / Avro / SQL Models** $\rightarrow$ `docs/wiki/Data-Catalog-and-Lineage.md` & `docs/wiki/Data-Contracts-and-Governance.md`
    * **Architecture / Pants / Docker / Modules** $\rightarrow$ `docs/wiki/Architecture-Overview.md` & `docs/wiki/Architecture-Decision-Records.md`
@@ -103,10 +84,10 @@ This project is bootstrapped to work seamlessly with VS Code / Antigravity IDE w
 
 When implementing new features or bug fixes, follow this workflow:
 
-1. **Local Implementation & Verification:** Implement changes locally on a feature branch, verify they run/package/lint cleanly (`./pants fmt ::`, `./pants lint ::`, `./pants package ::`, `./pants run docs:validate_wiki`, and pipeline verification), and synchronize `README.md`, `projects/ecommerce/README.md`, `docs/wiki/`, and `AGENTS.md`.
+1. **Local Implementation & Verification:** Implement changes locally on a feature branch, verify they run/test/package/lint cleanly (`./pants fmt ::`, `./pants lint ::`, `./pants test ::`, `./pants package ::`, `./pants run docs:validate_wiki`, and pipeline verification), and synchronize `README.md`, `projects/ecommerce/README.md`, `docs/wiki/`, and `AGENTS.md`.
 2. **Local Review & Iteration:** Inspect the full `git diff` yourself to catch bugs, edge cases, unused dependencies, or formatting/lint issues, and iterate locally until the diff is clean.
 3. **Commit & Push:** Stage and commit your verified changes (`git commit`) and push the feature branch to `origin`.
-4. **PR Creation Against `develop`:** Once done with the changes, use the `github` MCP server to create a Pull Request targeting the **`develop`** branch (`base: "develop"`). The PR description must follow `.github/pull_request_template.md`:
+4. **PR Creation Against `develop`:** Once done with the changes, use the `github` MCP server or `gh pr create` to create a Pull Request targeting the **`develop`** branch (`base: "develop"`). The PR description must follow `.github/pull_request_template.md`:
    * **Summary:** A clear explanation of *why* the changes were made.
    * **Key Changes:** A bulleted list of modified modules/files and what was updated.
    * **Verification:** Documentation of successful test/run commands executed during verification.

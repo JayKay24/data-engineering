@@ -3,33 +3,129 @@ version: 2
 models:
   - name: cumulative_users
     description: "Historical cumulative user growth cohorts"
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: cohort_date
+        data_type: date
+        tests:
+          - not_null
+      - name: new_users
+        data_type: bigint
+        tests:
+          - not_null
+      - name: cumulative_users
+        data_type: bigint
+        tests:
+          - not_null
   - name: daily_category_sales
-    description: "Aggregated daily category revenue and volume"
-  - name: monthly_category_sales
-    description: "Aggregated monthly category revenue trends"
-  - name: daily_top_urls
-    description: "Daily URL activity summaries by interaction type"
-  - name: daily_top_urls_per_user
-    description: "Top 5 visited URLs per user by day"
-  - name: daily_url_conversion
-    description: "Daily consolidated URL conversion performance"
-  - name: new_vs_returning_users
-    description: "Daily breakdown of new vs returning active users"
-  - name: customer_segment_spending
-    description: "Customer spending enriched with PostgreSQL OLTP segment and region dimensions"
+    description: "Aggregated daily category revenue and volume (incremental)"
+    config:
+      contract:
+        enforced: true
     columns:
-      - name: user_id
-        tests:
-          - not_null
-      - name: segment
-        tests:
-          - not_null
-  - name: brand_category_performance
-    description: "Product brand and category revenue enriched with PostgreSQL OLTP product dimensions"
-    columns:
-      - name: brand
+      - name: sales_date
+        data_type: date
         tests:
           - not_null
       - name: category
+        data_type: varchar
         tests:
           - not_null
+      - name: daily_revenue
+        data_type: double
+        tests:
+          - not_null
+      - name: daily_units
+        data_type: bigint
+        tests:
+          - not_null
+  - name: monthly_category_sales
+    description: "Aggregated monthly category revenue trends"
+  - name: daily_top_urls
+    description: "Daily URL activity summaries by interaction type (incremental)"
+  - name: daily_top_urls_per_user
+    description: "Top 5 visited URLs per user by day"
+  - name: daily_url_conversion
+    description: "Daily consolidated URL conversion performance (incremental)"
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: conversion_date
+        data_type: date
+        tests:
+          - not_null
+      - name: url
+        data_type: varchar
+        tests:
+          - not_null
+      - name: total_views
+        data_type: bigint
+        tests:
+          - not_null
+      - name: total_purchases
+        data_type: bigint
+        tests:
+          - not_null
+      - name: avg_conversion_rate
+        data_type: double
+        tests:
+          - not_null
+  - name: new_vs_returning_users
+    description: "Daily breakdown of new vs returning active users"
+  - name: customer_segment_spending
+    description: "Customer spending enriched point-in-time with SCD Type 2 customer snapshots"
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: user_id
+        data_type: varchar
+        tests:
+          - not_null
+      - name: segment
+        data_type: varchar
+        tests:
+          - not_null
+      - name: region
+        data_type: varchar
+        tests:
+          - not_null
+      - name: total_revenue
+        data_type: double
+        tests:
+          - not_null
+      - name: total_units
+        data_type: bigint
+        tests:
+          - not_null
+      - name: purchase_windows
+        data_type: bigint
+        tests:
+          - not_null
+  - name: brand_category_performance
+    description: "Product brand and category revenue enriched point-in-time with SCD Type 2 product snapshots"
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: brand
+        data_type: varchar
+        tests:
+          - not_null
+      - name: category
+        data_type: varchar
+        tests:
+          - not_null
+      - name: total_revenue
+        data_type: double
+        tests:
+          - not_null
+      - name: total_units
+        data_type: bigint
+        tests:
+          - not_null
+      - name: avg_unit_price
+        data_type: double

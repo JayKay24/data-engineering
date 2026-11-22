@@ -12,16 +12,18 @@ windowing:
   url_field: "url"
   event_field: "event_type"
   window_duration: "10 seconds"
-  slide_duration: "5 seconds"
+  slide_duration: "10 seconds"
   watermark_delay: "10 seconds"
   top_n: 5
   session_gap_seconds: 900
 
 storage:
   output_mode: "append"
-  trigger_processing_time: "5 seconds"
+  trigger_processing_time: "30 seconds"
   output_base_dir: "projects/ecommerce/output_data"
   checkpoint_base_dir: "projects/ecommerce/checkpoints"
+  silver_table: "silver_ecommerce_events"
+  quarantine_table: "quarantine_events"
 
 sinks:
   - url_counts

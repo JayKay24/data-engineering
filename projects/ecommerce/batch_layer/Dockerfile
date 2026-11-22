@@ -28,6 +28,7 @@ RUN python3 /tmp/extract_lock_constraints.py --lockfile /tmp/user_reqs.lock --al
     dbt-core \
     dbt-duckdb \
     duckdb && \
+    python3 -c "import duckdb; duckdb.execute('INSTALL delta')" && \
     rm -f /tmp/user_reqs.lock /tmp/extract_lock_constraints.py /tmp/pants-constraints.txt
 
 WORKDIR /usr/app

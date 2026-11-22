@@ -21,10 +21,36 @@ from projects.common.logger import get_logger  # noqa: E402
 logger = get_logger("EcommercePyDeequ")
 
 
+def _ensure_pydeequ_parquet_schema(parquet_path: str) -> None:
+    """Create an empty schema-valid PyDeequ Parquet file if none exists yet.
+
+    Args:
+        parquet_path: Destination Parquet path under ``pydeequ_metrics/``.
+    """
+    if os.path.exists(parquet_path):
+        return
+    os.makedirs(os.path.dirname(parquet_path), exist_ok=True)
+    empty_df = pd.DataFrame(
+        {
+            "engine": pd.Series(dtype="string"),
+            "generated_at": pd.Series(dtype="string"),
+            "row_count": pd.Series(dtype="int64"),
+            "overall_status": pd.Series(dtype="string"),
+            "check_name": pd.Series(dtype="string"),
+            "check_level": pd.Series(dtype="string"),
+            "constraint": pd.Series(dtype="string"),
+            "constraint_status": pd.Series(dtype="string"),
+            "constraint_message": pd.Series(dtype="string"),
+        }
+    )
+    empty_df.to_parquet(parquet_path, index=False, engine="pyarrow")
+
+
 def run_pydeequ_verification(
     spark: SparkSession,
     df: DataFrame,
     output_base_dir: str = "projects/ecommerce/output_data",
+    batch_id: int | None = None,
 ) -> dict:
     """Run Amazon Deequ data quality verification on a bounded DataFrame.
 
@@ -34,15 +60,20 @@ def run_pydeequ_verification(
 
     Args:
         spark: Active SparkSession configured with the Deequ Maven package.
-        df: Bounded Spark DataFrame containing parsed e-commerce events.
+        df: Bounded Spark DataFrame (including ``foreachBatch`` micro-batches)
+            containing parsed e-commerce events.
         output_base_dir: Root output directory where ``pydeequ_metrics/``
             artifacts are written.
+        batch_id: Optional Structured Streaming micro-batch identifier.
 
     Returns:
         Dictionary summarizing overall status, row count, and constraint
         results.
     """
-    # PyDeequ VerificationSuite only supports bounded batch DataFrames, not unbounded streams.
+    metrics_dir = os.path.join(output_base_dir, "pydeequ_metrics")
+    parquet_path = os.path.join(metrics_dir, "pydeequ_checks.parquet")
+
+    # PyDeequ VerificationSuite only supports bounded DataFrames, not unbounded streams.
     if df.isStreaming:
         logger.warning(
             "Skipping PyDeequ verification because the input DataFrame is unbounded streaming."
@@ -50,7 +81,26 @@ def run_pydeequ_verification(
         return {"status": "SKIPPED", "reason": "streaming_dataframe", "checks": []}
 
     row_count = df.count()
-    logger.info("Running PyDeequ VerificationSuite on %d event rows...", row_count)
+    if row_count == 0:
+        logger.info(
+            "Skipping PyDeequ VerificationSuite on empty batch (batch_id=%s).",
+            batch_id,
+        )
+        _ensure_pydeequ_parquet_schema(parquet_path)
+        return {
+            "engine": "pydeequ",
+            "batch_id": batch_id,
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "row_count": 0,
+            "overall_status": "EMPTY",
+            "checks": [],
+        }
+
+    logger.info(
+        "Running PyDeequ VerificationSuite on %d event rows (batch_id=%s)...",
+        row_count,
+        batch_id,
+    )
 
     check = (
         Check(spark, CheckLevel.Error, "EcommerceEventsQualityCheck")
@@ -75,19 +125,19 @@ def run_pydeequ_verification(
 
     report = {
         "engine": "pydeequ",
+        "batch_id": batch_id,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "row_count": row_count,
         "overall_status": overall_status,
         "checks": rows,
     }
 
-    metrics_dir = os.path.join(output_base_dir, "pydeequ_metrics")
     os.makedirs(metrics_dir, exist_ok=True)
     report_path = os.path.join(metrics_dir, "latest_report.json")
     with open(report_path, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2, default=str)
 
-    # Persist flat Parquet snapshot for dbt monitor views and Apache Superset charting.
+    # Persist flat Parquet snapshot for dbt monitor tables and Apache Superset charting.
     flat_rows = [
         {
             "engine": "pydeequ",
@@ -102,13 +152,13 @@ def run_pydeequ_verification(
         }
         for r in rows
     ]
-    parquet_path = os.path.join(metrics_dir, "pydeequ_checks.parquet")
     pd.DataFrame(flat_rows).to_parquet(parquet_path, index=False, engine="pyarrow")
 
     logger.info(
-        "PyDeequ verification finished with status=%s (%d constraints). Report: %s",
+        "PyDeequ verification finished with status=%s (%d constraints, batch_id=%s). Report: %s",
         overall_status,
         len(rows),
+        batch_id,
         report_path,
     )
     return report

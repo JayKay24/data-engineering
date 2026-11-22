@@ -85,3 +85,27 @@ models:
       - name: brand
         tests:
           - not_null
+  - name: silver_ecommerce_events
+    description: "Validated Medallion Silver event stream read via DuckDB delta_scan()"
+    columns:
+      - name: user_id
+        tests:
+          - not_null
+      - name: url
+        tests:
+          - not_null
+      - name: event_type
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["view", "add_to_cart", "purchase"]
+      - name: event_time
+        tests:
+          - not_null
+  - name: quarantine_events
+    description: "Dead-letter Delta Lake table capturing domain-invalid events and quarantine reasons"
+    columns:
+      - name: quarantine_reason
+        tests:
+          - not_null

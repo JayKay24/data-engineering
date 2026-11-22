@@ -21,6 +21,10 @@ This catalog documents the foundational Architecture Decision Records (ADRs) for
 | **ADR-011** | [Lockfile-Driven Docker Builds & Isolated `/opt/pipeline-venv`](#adr-011-lockfile-driven-docker-builds--isolated-optpipeline-venv)        | `Accepted` | Containers      | PR [#24](https://github.com/JayKay24/data-engineering/pull/24)                                     |
 | **ADR-012** | [Monorepo Consolidation into `projects/ecommerce` & Local Agent Review](#adr-012-monorepo-consolidation-into-projectsecommerce--local-agent-review) | `Accepted` | Consolidation | PR [#24](https://github.com/JayKay24/data-engineering/pull/24), [#25](https://github.com/JayKay24/data-engineering/pull/25) |
 | **ADR-013** | [Migrating Executive BI from Streamlit to Apache Superset (Dashboards-as-Code)](#adr-013-migrating-executive-bi-from-streamlit-to-apache-superset-dashboards-as-code) | `Accepted` | Serving / BI | Apache Superset Migration |
+| **ADR-014** | [Replacing ZooKeeper/Kafka/Schema Registry with Single-Binary Redpanda](#adr-014-replacing-zookeeperkafkaschema-registry-with-single-binary-redpanda) | `Accepted` | Cost / Broker | Production Medallion Modernization |
+| **ADR-015** | [Single-Consumer `foreachBatch` Medallion Silver/DLQ, Live PyDeequ & Tumbling Windows](#adr-015-single-consumer-foreachbatch-medallion-silverdlq-live-pydeequ--tumbling-windows) | `Accepted` | Speed / Quality | Production Medallion Modernization |
+| **ADR-016** | [DuckDB `delta_scan()`, Materialized Monitor Tables & Atomic Write-Audit-Publish (WAP)](#adr-016-duckdb-delta_scan-materialized-monitor-tables--atomic-write-audit-publish-wap) | `Accepted` | Warehouse / Reliability | Production Medallion Modernization |
+| **ADR-017** | [SCD Type 2 Snapshots, Contracted Incremental Marts, Astronomer Cosmos & BigQuery FinOps](#adr-017-scd-type-2-snapshots-contracted-incremental-marts-astronomer-cosmos--bigquery-finops) | `Accepted` | Orchestration / Cloud | Production Medallion Modernization |
 
 ---
 
@@ -241,3 +245,75 @@ Replace `orchestration/viz/` (Streamlit + Plotly) with **Apache Superset (`6.1.0
 ### Consequences
 - **Positive**: 100% free Apache 2.0 BI suite with SQL Lab, Redis caching, version-controlled YAML dashboards, and exact DuckDB lockfile parity.
 - **Negative**: Slightly higher container memory footprint (Superset + Redis) compared to a single Streamlit script, mitigated by scripted `bootstrap.sh` provisioning.
+
+---
+
+## ADR-014: Replacing ZooKeeper/Kafka/Schema Registry with Single-Binary Redpanda
+
+### Status
+`Accepted`
+
+### Context
+Running separate Confluent `cp-zookeeper`, `cp-kafka`, and `cp-schema-registry` JVM containers consumed ~2.5–3.0 GB RAM before ingesting a single event, making \$0–\$6/month cloud hosting impractical while relying on deprecated ZooKeeper metadata orchestration.
+
+### Decision
+Replace the 3-container Confluent stack in `projects/common/docker/docker-compose.yml` with **Redpanda (`v24.2.11`)** (`--smp=1 --memory=350M`), exposing 100% wire-compatible Kafka (`:9092` / `:19092`) and Schema Registry (`:8081`) endpoints without modifying producer (`confluent-kafka[avro]`) or Spark ABRiS consumer code.
+
+### Consequences
+- **Positive**: Cuts broker RAM footprint by ~85% (~2.5 GB $\rightarrow$ ~350 MB) and eliminates ZooKeeper altogether.
+- **Negative**: Uses Redpanda rather than Apache Kafka KRaft JVM images; Kafka client protocol parity remains 100% preserved.
+
+---
+
+## ADR-015: Single-Consumer `foreachBatch` Medallion Silver/DLQ, Live PyDeequ & Tumbling Windows
+
+### Status
+`Accepted`
+
+### Context
+Launching 8 separate `writeStream` queries against Kafka caused 8x redundant deserialization passes, generated ~96 tiny files per minute, bypassed PyDeequ in streaming mode, and produced 2x inflated downstream revenue totals because `10s` windows with `5s` slides assigned every purchase event to two overlapping windows.
+
+### Decision
+1. Consolidate Kafka consumption into a single ABRiS stream (`--mode available-now` default for lean scheduled catch-up, plus `streaming` and `batch`) using `foreachBatch` with `batch_df.persist()`.
+2. Execute live PyDeequ verification on every micro-batch and route domain violations (invalid `event_type`, negative `price`, missing required fields) to a `quarantine_events` Delta DLQ table while appending valid records to date-partitioned `silver_ecommerce_events`.
+3. Roll up all 8 KPI Delta sinks in one cached pass over Silver using non-overlapping `10s` tumbling windows (`window_duration == slide_duration == "10 seconds"`).
+
+### Consequences
+- **Positive**: Eliminates 2x revenue double-counting, drops Kafka read amplification 8x $\rightarrow$ 1x, enables live streaming PyDeequ + quarantine observability, and frees JVM memory between Airflow `availableNow` runs.
+
+---
+
+## ADR-016: DuckDB `delta_scan()`, Materialized Monitor Tables & Atomic Write-Audit-Publish (WAP)
+
+### Status
+`Accepted`
+
+### Context
+Globbing `read_parquet('.../*.parquet')` over Delta Lake tables ignored `_delta_log`, reading tombstoned Parquet files left behind by overwrites or compaction. Simultaneously, writing directly to `ecommerce.duckdb` caused single-writer lock collisions with Apache Superset.
+
+### Decision
+1. Enable DuckDB's native `delta` extension in `profiles.yml` and switch Delta-backed dbt staging views to `delta_scan()` (`get_delta_path`), reserving `read_parquet()` (`get_parquet_path`) for Parquet dimensions and quality reports.
+2. Materialize `models/monitors/` as `table`s instead of external-file `view`s so `ecommerce.duckdb` is self-contained.
+3. Introduce `projects/ecommerce/wap_duckdb.py` (`prepare` / `publish`) so Airflow builds and validates against `ecommerce_staging.duckdb` before running `CHECKPOINT;` and atomically promoting via `os.replace()` to `ecommerce.duckdb` (paired with `pool_recycle: 30` and `pool_pre_ping: true` in Superset).
+
+### Consequences
+- **Positive**: Strictly ACID Delta reads, zero Superset lock contention, and unvalidated data never reaches BI dashboards.
+
+---
+
+## ADR-017: SCD Type 2 Snapshots, Contracted Incremental Marts, Astronomer Cosmos & BigQuery FinOps
+
+### Status
+`Accepted`
+
+### Context
+Full-refresh dbt tables, opaque Airflow `BashOperator` dbt invocations, Pandas-based OLTP/BigQuery copies, and unpartitioned BigQuery `WRITE_TRUNCATE` loads lacked historical dimension tracking, column-level lineage, and cloud FinOps guardrails.
+
+### Decision
+1. Refactor `oltp_sync/sync_dimensions.py` to build typed ZSTD Parquet directly via PyArrow without Pandas.
+2. Add dbt SCD Type 2 snapshots (`snap_customers`, `snap_products`), incremental (`delete+insert`) time-series marts, enforced dbt Model Contracts (`contract: {enforced: true}`), and native dbt 1.12 `unit_tests.yml`.
+3. Integrate **Astronomer Cosmos (`1.15.x`)** `DbtTaskGroup` serialized on `duckdb_write_pool` (`slots=1`) in `ecommerce_pipeline.py`.
+4. Update `cloud_sync/export_to_gcp.py` to export 5 compacted ZSTD Gold Parquet files to GCS and load time-partitioned, clustered BigQuery tables with a `100 MB` `maximum_bytes_billed` guardrail, backed by Terraform IaC (`infra/terraform/`) and automated `./pants test ::` CI (`.github/workflows/ci.yml`).
+
+### Consequences
+- **Positive**: Point-in-time historical accuracy, task-level dbt observability in Airflow, minimal GCS Class A operations, bounded BigQuery scan costs, and full automated test coverage.

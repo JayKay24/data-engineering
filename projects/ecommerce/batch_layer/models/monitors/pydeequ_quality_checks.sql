@@ -1,4 +1,4 @@
-{{ config(materialized='view') }}
+{{ config(materialized='table') }}
 
 select
   engine,
@@ -10,4 +10,4 @@ select
   "constraint" as constraint_name,
   constraint_status,
   constraint_message
-from {{ get_stream_path('pydeequ_metrics') }}
+from {{ get_parquet_path('pydeequ_metrics') }}

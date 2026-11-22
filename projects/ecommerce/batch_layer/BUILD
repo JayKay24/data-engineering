@@ -9,6 +9,7 @@ files(
         "macros/**/*.sql",
         "models/**/*.sql",
         "models/**/*.yml",
+        "snapshots/**/*.sql",
     ],
 )
 
