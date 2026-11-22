@@ -8,4 +8,4 @@ select
   category,
   cast(revenue as double) as revenue,
   cast(units   as integer) as units
-from {{ get_stream_path('product_sales') }}
+from {{ get_delta_path('product_sales') }}

@@ -1,0 +1,17 @@
+python_tests(
+    name="tests",
+    dependencies=[
+        "projects/common:lib",
+        "projects/ecommerce:lib",
+        "projects/ecommerce/batch_layer:dbt_files",
+        "projects/ecommerce/cloud_sync:lib",
+        "projects/ecommerce/oltp_sync:lib",
+        "projects/ecommerce/orchestration/dags:dags",
+        "projects/ecommerce/orchestration/superset:lib",
+        "projects/ecommerce/orchestration/superset:superset_files",
+        "projects/ecommerce/quality:lib",
+        "projects/ecommerce/streaming_layer:lib",
+        "projects/ecommerce/streaming_layer:data_files",
+        "3rdparty:reqs#dbt-duckdb",
+    ],
+)

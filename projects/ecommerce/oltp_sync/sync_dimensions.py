@@ -1,17 +1,12 @@
-"""PostgreSQL OLTP dimension management and Parquet export utility.
-
-Seeds baseline ``dim_customers`` and ``dim_products`` tables in PostgreSQL,
-extracts them into Pandas DataFrames, and writes Parquet files for downstream
-dbt/DuckDB consumption (with an optional offline fallback).
-"""
+"""PostgreSQL OLTP dimension management and zero-Pandas PyArrow Parquet export."""
 
 import argparse
 import os
 import sys
 
-import pandas as pd
-import pyarrow  # noqa: F401 - ensures pyarrow engine is registered for Parquet export
 import psycopg2
+import pyarrow as pa
+import pyarrow.parquet as pq
 
 from projects.common.logger import get_logger
 from projects.ecommerce.oltp_sync.config import get_connection
@@ -37,6 +32,24 @@ DEFAULT_PRODUCTS: list[tuple[str, str, str, float]] = [
     ("prod_05", "home", "ErgoCraft", 150.00),
 ]
 
+CUSTOMER_ARROW_SCHEMA = pa.schema(
+    [
+        ("user_id", pa.string()),
+        ("segment", pa.string()),
+        ("region", pa.string()),
+        ("registration_date", pa.string()),
+    ]
+)
+
+PRODUCT_ARROW_SCHEMA = pa.schema(
+    [
+        ("product_id", pa.string()),
+        ("category", pa.string()),
+        ("brand", pa.string()),
+        ("unit_price", pa.float64()),
+    ]
+)
+
 DDL_STATEMENTS = """
 CREATE TABLE IF NOT EXISTS dim_customers (
     user_id VARCHAR(64) PRIMARY KEY,
@@ -54,19 +67,67 @@ CREATE TABLE IF NOT EXISTS dim_products (
 """
 
 
-def seed_postgres_dimensions() -> None:
-    """Ensures OLTP dimension tables exist and upserts baseline records.
+def _build_customer_table(rows: list[tuple[str, str, str, str]]) -> pa.Table:
+    """Build a typed PyArrow Table from customer dimension tuples."""
+    return pa.Table.from_pydict(
+        {
+            "user_id": [r[0] for r in rows],
+            "segment": [r[1] for r in rows],
+            "region": [r[2] for r in rows],
+            "registration_date": [r[3] for r in rows],
+        },
+        schema=CUSTOMER_ARROW_SCHEMA,
+    )
 
-    Creates ``dim_customers`` and ``dim_products`` if missing, then performs
-    idempotent upserts using ``DEFAULT_CUSTOMERS`` and ``DEFAULT_PRODUCTS``.
+
+def _build_product_table(rows: list[tuple[str, str, str, float]]) -> pa.Table:
+    """Build a typed PyArrow Table from product dimension tuples."""
+    return pa.Table.from_pydict(
+        {
+            "product_id": [r[0] for r in rows],
+            "category": [r[1] for r in rows],
+            "brand": [r[2] for r in rows],
+            "unit_price": [float(r[3]) for r in rows],
+        },
+        schema=PRODUCT_ARROW_SCHEMA,
+    )
+
+
+def _apply_scd_change(
+    customers: list[tuple[str, str, str, str]],
+    products: list[tuple[str, str, str, float]],
+) -> tuple[list[tuple[str, str, str, str]], list[tuple[str, str, str, float]]]:
+    """Mutate deterministic dimension attributes to exercise SCD Type 2 snapshots."""
+    updated_customers = [
+        (uid, "Enterprise", reg, dt) if uid == "user_103" else (uid, seg, reg, dt)
+        for uid, seg, reg, dt in customers
+    ]
+    updated_products = [
+        (pid, cat, br, 1149.99) if pid == "prod_01" else (pid, cat, br, price)
+        for pid, cat, br, price in products
+    ]
+    return updated_customers, updated_products
+
+
+def seed_postgres_dimensions(simulate_scd_change: bool = False) -> None:
+    """Ensure OLTP dimension tables exist and upsert baseline records.
+
+    Args:
+        simulate_scd_change: When ``True``, applies a deterministic attribute
+            update to ``user_103`` and ``prod_01`` so downstream SCD Type 2
+            snapshots record historical transitions.
 
     Raises:
         psycopg2.Error: If the database connection or SQL execution fails.
     """
+    customers = list(DEFAULT_CUSTOMERS)
+    products = list(DEFAULT_PRODUCTS)
+    if simulate_scd_change:
+        customers, products = _apply_scd_change(customers, products)
+
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(DDL_STATEMENTS)
-            # Use ON CONFLICT DO UPDATE so repeated runs stay idempotent and refresh attributes.
             cur.executemany(
                 """
                 INSERT INTO dim_customers (user_id, segment, region, registration_date)
@@ -76,7 +137,7 @@ def seed_postgres_dimensions() -> None:
                     region = EXCLUDED.region,
                     registration_date = EXCLUDED.registration_date;
                 """,
-                DEFAULT_CUSTOMERS,
+                customers,
             )
             cur.executemany(
                 """
@@ -87,28 +148,28 @@ def seed_postgres_dimensions() -> None:
                     brand = EXCLUDED.brand,
                     unit_price = EXCLUDED.unit_price;
                 """,
-                DEFAULT_PRODUCTS,
+                products,
             )
     logger.info(
-        "Seeded PostgreSQL OLTP dimension tables (%d customers, %d products).",
-        len(DEFAULT_CUSTOMERS),
-        len(DEFAULT_PRODUCTS),
+        "Seeded PostgreSQL OLTP dimension tables (%d customers, %d products, scd_change=%s).",
+        len(customers),
+        len(products),
+        simulate_scd_change,
     )
 
 
-def extract_dimensions_from_postgres() -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Extracts customer and product dimension tables from PostgreSQL.
+def extract_dimensions_from_postgres() -> tuple[pa.Table, pa.Table]:
+    """Extract customer and product dimension tables from PostgreSQL into PyArrow.
 
     Returns:
-        A ``(customers_df, products_df)`` tuple containing the extracted
-        ``dim_customers`` and ``dim_products`` DataFrames ordered by primary key.
+        A ``(customers_table, products_table)`` tuple of typed ``pyarrow.Table``
+        instances ordered by primary key without intermediate Pandas copies.
 
     Raises:
         psycopg2.Error: If querying PostgreSQL fails.
     """
     with get_connection() as conn:
         with conn.cursor() as cur:
-            # Cast DATE/NUMERIC to text/float to avoid Python date/Decimal objects in Parquet.
             cur.execute(
                 "SELECT user_id, segment, region, registration_date::text FROM dim_customers ORDER BY user_id;"
             )
@@ -118,31 +179,21 @@ def extract_dimensions_from_postgres() -> tuple[pd.DataFrame, pd.DataFrame]:
             )
             product_rows = cur.fetchall()
 
-    customers_df = pd.DataFrame(
-        customer_rows, columns=["user_id", "segment", "region", "registration_date"]
-    )
-    products_df = pd.DataFrame(
-        product_rows, columns=["product_id", "category", "brand", "unit_price"]
-    )
-    return customers_df, products_df
+    return _build_customer_table(customer_rows), _build_product_table(product_rows)
 
 
 def write_dimension_parquet(
-    customers_df: pd.DataFrame,
-    products_df: pd.DataFrame,
+    customers_table: pa.Table,
+    products_table: pa.Table,
     output_base_dir: str,
 ) -> None:
-    """Persists customer and product dimension DataFrames as Parquet files.
-
-    Writes each table into its own subdirectory under ``output_base_dir``
-    (``dim_customers/`` and ``dim_products/``) for downstream dbt/DuckDB reads.
+    """Persist customer and product PyArrow tables directly as ZSTD Parquet files.
 
     Args:
-        customers_df: Customer dimension DataFrame.
-        products_df: Product dimension DataFrame.
+        customers_table: Typed PyArrow table for ``dim_customers``.
+        products_table: Typed PyArrow table for ``dim_products``.
         output_base_dir: Root directory where dimension subdirectories are created.
     """
-    # Isolate each dimension in its own folder so DuckDB/dbt can glob per-table directories.
     cust_dir = os.path.join(output_base_dir, "dim_customers")
     prod_dir = os.path.join(output_base_dir, "dim_products")
     os.makedirs(cust_dir, exist_ok=True)
@@ -151,19 +202,19 @@ def write_dimension_parquet(
     cust_path = os.path.join(cust_dir, "dim_customers.parquet")
     prod_path = os.path.join(prod_dir, "dim_products.parquet")
 
-    # Omit the Pandas DataFrame index so Parquet schemas match the SQL table columns.
-    customers_df.to_parquet(cust_path, index=False, engine="pyarrow")
-    products_df.to_parquet(prod_path, index=False, engine="pyarrow")
+    pq.write_table(customers_table, cust_path, compression="zstd")
+    pq.write_table(products_table, prod_path, compression="zstd")
 
-    logger.info("Wrote %d customer rows to %s", len(customers_df), cust_path)
-    logger.info("Wrote %d product rows to %s", len(products_df), prod_path)
+    logger.info("Wrote %d customer rows to %s", customers_table.num_rows, cust_path)
+    logger.info("Wrote %d product rows to %s", products_table.num_rows, prod_path)
 
 
 def sync_dimensions(
     output_base_dir: str = "projects/ecommerce/output_data",
     seed_from_defaults_on_offline: bool = False,
+    simulate_scd_change: bool = False,
 ) -> None:
-    """Seeds PostgreSQL OLTP dimension tables and exports them to Parquet.
+    """Seed PostgreSQL OLTP dimension tables and export them directly to Parquet.
 
     Args:
         output_base_dir: Base directory where Parquet dimension subdirectories
@@ -171,39 +222,37 @@ def sync_dimensions(
         seed_from_defaults_on_offline: When ``True``, falls back to the
             in-memory ``DEFAULT_CUSTOMERS`` and ``DEFAULT_PRODUCTS`` datasets if
             PostgreSQL is unreachable instead of raising an error.
+        simulate_scd_change: When ``True``, applies a deterministic SCD change
+            to ``user_103`` and ``prod_01`` for snapshot testing.
 
     Raises:
         psycopg2.OperationalError: If PostgreSQL is unreachable and
             ``seed_from_defaults_on_offline`` is ``False``.
     """
     try:
-        seed_postgres_dimensions()
-        customers_df, products_df = extract_dimensions_from_postgres()
+        seed_postgres_dimensions(simulate_scd_change=simulate_scd_change)
+        customers_table, products_table = extract_dimensions_from_postgres()
     except psycopg2.OperationalError as exc:
         if not seed_from_defaults_on_offline:
             raise
-        # Support local/CI runs without a live Postgres container when offline fallback is enabled.
         logger.warning(
             "PostgreSQL unavailable (%s). Falling back to baseline dimension datasets.",
             exc,
         )
-        customers_df = pd.DataFrame(
-            DEFAULT_CUSTOMERS,
-            columns=["user_id", "segment", "region", "registration_date"],
-        )
-        products_df = pd.DataFrame(
-            DEFAULT_PRODUCTS,
-            columns=["product_id", "category", "brand", "unit_price"],
-        )
+        customers = list(DEFAULT_CUSTOMERS)
+        products = list(DEFAULT_PRODUCTS)
+        if simulate_scd_change:
+            customers, products = _apply_scd_change(customers, products)
+        customers_table = _build_customer_table(customers)
+        products_table = _build_product_table(products)
 
-    write_dimension_parquet(customers_df, products_df, output_base_dir)
+    write_dimension_parquet(customers_table, products_table, output_base_dir)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Seed and extract PostgreSQL OLTP dimension tables to Parquet."
     )
-    # Honor CLICK_STREAM_OUTPUT_PREFIX so containerized/Airflow runs share the same output root.
     parser.add_argument(
         "--output-dir",
         default=os.getenv(
@@ -216,12 +265,18 @@ if __name__ == "__main__":
         action="store_true",
         help="Fallback to default dimension datasets if PostgreSQL is unreachable.",
     )
+    parser.add_argument(
+        "--simulate-scd-change",
+        action="store_true",
+        help="Apply a deterministic segment/price update to test SCD Type 2 snapshots.",
+    )
     args = parser.parse_args()
 
     try:
         sync_dimensions(
             output_base_dir=args.output_dir,
             seed_from_defaults_on_offline=args.seed_from_defaults_on_offline,
+            simulate_scd_change=args.simulate_scd_change,
         )
     except Exception as exc:
         logger.error("OLTP dimension sync failed: %s", exc, exc_info=True)

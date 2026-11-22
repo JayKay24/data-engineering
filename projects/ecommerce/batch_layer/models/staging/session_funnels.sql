@@ -7,4 +7,4 @@ select
   cast(has_view     as boolean) as has_view,
   cast(has_add      as boolean) as has_add,
   cast(has_purchase as boolean) as has_purchase
-from {{ get_stream_path('session_funnels') }}
+from {{ get_delta_path('session_funnels') }}

@@ -6,4 +6,4 @@ select
   user_id,
   url,
   cast(count as integer) as count
-from {{ get_stream_path('top_urls_per_user') }}
+from {{ get_delta_path('top_urls_per_user') }}

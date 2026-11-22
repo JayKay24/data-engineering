@@ -42,10 +42,18 @@ services:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
       PYTHONPATH: /opt/repo
       CLICK_STREAM_OUTPUT_PREFIX: /opt/project/output_data
+      SPARK_OUTPUT_BASE_DIR: /opt/project/output_data
+      SPARK_CHECKPOINT_BASE_DIR: /opt/project/checkpoints
       DBT_PROJ_DIR: /opt/project/batch_layer
       DUCKDB_PATH: /opt/project/batch_layer/data/ecommerce.duckdb
+      DUCKDB_SERVING_PATH: /opt/project/batch_layer/data/ecommerce.duckdb
+      DUCKDB_STAGING_PATH: /opt/project/batch_layer/data/ecommerce_staging.duckdb
       ECOMMERCE_CONFIG_PATH: /opt/project/streaming_layer/config/ecommerce_config.yml
       ECOMMERCE_EVENTS_PATH: /opt/project/streaming_layer/input_data/ecommerce_events.json
+      SPARK_IN_AIRFLOW: ${SPARK_IN_AIRFLOW:-false}
+      PRODUCE_SYNTHETIC_EVENTS: ${PRODUCE_SYNTHETIC_EVENTS:-false}
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:-host.docker.internal:9092}
+      SCHEMA_REGISTRY_URL: ${SCHEMA_REGISTRY_URL:-http://host.docker.internal:8081}
       POSTGRES_HOST: postgres
       POSTGRES_PORT: "5432"
       POSTGRES_DB: airflow
@@ -55,9 +63,12 @@ services:
       GOOGLE_CLOUD_PROJECT: ${GOOGLE_CLOUD_PROJECT:-demo-data-project}
       GCS_BUCKET: ${GCS_BUCKET:-demo-ecommerce-datalake}
       BIGQUERY_DATASET: ${BIGQUERY_DATASET:-ecommerce_warehouse}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     command: >
       bash -lc "
         airflow db init &&
+        airflow pools set duckdb_write_pool 1 'Serialize single-writer DuckDB dbt tasks' &&
         airflow users create --role Admin --username admin --password admin --firstname Admin --lastname User --email admin@example.com || true &&
         airflow webserver -p 8080 &
         exec airflow scheduler
@@ -68,6 +79,7 @@ services:
       - ../../..:/opt/repo
       - ..:/opt/project
       - ./dags:/opt/airflow/dags
+      - spark_ivy:/opt/spark-ivy
     restart: unless-stopped
 
   superset:
@@ -81,6 +93,7 @@ services:
         condition: service_healthy
     environment:
       SUPERSET_SECRET_KEY: ${SUPERSET_SECRET_KEY:-ecommerce-superset-dev-secret-key-change-me}
+      SUPERSET_PUBLIC_READONLY: ${SUPERSET_PUBLIC_READONLY:-false}
       SUPERSET_DB_HOST: postgres
       SUPERSET_DB_PORT: "5432"
       SUPERSET_DB_NAME: superset
@@ -97,3 +110,4 @@ services:
 
 volumes:
   pgdata:
+  spark_ivy:

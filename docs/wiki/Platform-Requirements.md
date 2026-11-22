@@ -2,13 +2,14 @@
 
 ## 1. Executive Summary & Vision
 
-The **E-Commerce Real-Time Lambda Architecture Platform** (`projects/ecommerce`) provides unified operational and analytical intelligence over high-velocity e-commerce clickstream and purchase activity. Real-time digital storefronts emit heterogeneous events (`view`, `add_to_cart`, `purchase`) with optional product metadata and out-of-order mobile delivery.
+The **E-Commerce Medallion Lakehouse & Real-Time Streaming Platform** (`projects/ecommerce`) provides unified operational and analytical intelligence over e-commerce clickstream and purchase activity while staying lightweight enough to run in production on low-cost single-node VMs (~2.5 GB RAM).
 
-The platform bridges low-latency stream processing with ACID-compliant batch warehousing by pairing:
-- A **Speed Layer** (Kafka + Confluent Schema Registry + PySpark Structured Streaming + ABRiS + PyDeequ + Delta Lake) for continuous event-time KPIs.
-- An **OLTP Dimension Sync Layer** (PostgreSQL 16 + `psycopg2-binary` + PyArrow) for customer and product master data enrichment.
-- A **Batch Warehouse Layer** (dbt + DuckDB) for curated Silver/Gold dimensional marts and freshness monitoring.
-- A **Quality & Cloud Governance Layer** (Great Expectations + Google Cloud Storage + BigQuery) and an **Orchestration & Serving Layer** (Apache Airflow 2.9.3 + Apache Superset 6.1.0 + Redis 7).
+The platform bridges incremental event-time stream processing with ACID-compliant batch warehousing by pairing:
+- A **Speed & Medallion Silver Layer** (Redpanda + Avro Schema Registry + single-consumer PySpark `foreachBatch` + ABRiS + live PyDeequ + Delta Lake Silver/DLQ) for exact tumbling-window and session KPIs.
+- An **OLTP Dimension Sync Layer** (PostgreSQL 16 + `psycopg2-binary` + zero-Pandas PyArrow ZSTD export) for customer and product master data.
+- A **Batch Warehouse Layer** (dbt `1.12` + DuckDB `1.5` native `delta_scan()`) for SCD Type 2 snapshots, contract-enforced incremental Gold marts, native dbt unit tests, and materialized monitor tables.
+- A **Quality, WAP & Cloud Governance Layer** (Great Expectations over live Silver Delta + staging Gold, atomic `wap_duckdb.py` promotion, compacted GCS Parquet + partitioned BigQuery, Terraform IaC).
+- An **Orchestration & Serving Layer** (Apache Airflow `2.9.3` + Astronomer Cosmos + Apache Superset `6.1.0` + Redis 7).
 
 ---
 
@@ -17,16 +18,16 @@ The platform bridges low-latency stream processing with ACID-compliant batch war
 ```mermaid
 flowchart TD
   subgraph Personas ["Platform Personas"]
-    DE["Data Engineer (Pipeline & Build Owner)"]
-    AE["Analytics Engineer (dbt & Warehouse Modeler)"]
+    DE["Data Engineer (Pipeline, CI & IaC Owner)"]
+    AE["Analytics Engineer (dbt, SCD2 & Contracts)"]
     BI["Business / Executive User (Dashboard Consumer)"]
   end
 
   subgraph Capabilities ["Operational Scopes"]
-    Build["Hermetic Pants Targets & Docker Builds"]
-    Stream["Kafka Avro Producers, Spark Streams & PyDeequ"]
-    Warehouse["OLTP Sync, dbt Models, GX Gates & BigQuery"]
-    Dash["Apache Superset BI & Airflow Monitoring"]
+    Build["Hermetic Pants Targets, Pytest CI & Terraform"]
+    Stream["Redpanda Avro Producer, 1x Spark foreachBatch & PyDeequ"]
+    Warehouse["OLTP Sync, dbt delta_scan(), GX Gates, WAP & BigQuery"]
+    Dash["Apache Superset BI & Airflow Cosmos Lineage"]
   end
 
   DE --> Build
@@ -36,73 +37,60 @@ flowchart TD
 ```
 
 ### 2.1 Data Engineer
-- **Hermetic Execution**: Execute every pipeline entry point as a reproducible Pants `pex_binary` (`./pants run ...`) locked to Python `3.10.9` and `3rdparty/user_reqs.lock`.
-- **Container Parity**: Build Docker images (`dbt_image`, `airflow_image`, `viz_image`) constrained to exact Pants lockfile versions via `3rdparty/extract_lock_constraints.py`.
-- **Stream Governance**: Enforce Avro schema contracts in Confluent Schema Registry (`:8081`) and verify bounded datasets with Amazon PyDeequ.
+- **Hermetic Execution & Testing**: Execute every pipeline entry point as a reproducible Pants `pex_binary` (`./pants run ...`) and run `./pants test ::` + `.github/workflows/ci.yml` against Python `3.10.9` and `3rdparty/user_reqs.lock`.
+- **Low-Footprint Production Hosting**: Run the unified stack (`orchestration/docker-compose.prod.yml`) on a ~2.5 GB RAM budget using single-binary Redpanda (`350 MB`), `availableNow` Spark bursts, and Terraform-managed Free-Tier GCP resources (`infra/terraform/`).
+- **Stream Governance**: Enforce Avro schema contracts in Redpanda Schema Registry (`:8081`), run PyDeequ inside `foreachBatch`, and isolate malformed events in `quarantine_events`.
 
 ### 2.2 Analytics Engineer
-- **Dynamic Lakehouse Pathing**: Resolve Delta/Parquet output directories dynamically via the `get_stream_path` dbt macro and `CLICK_STREAM_OUTPUT_PREFIX`.
-- **Dimensional Enrichment**: Join streaming `product_sales` against synced PostgreSQL `dim_customers` (`segment`, `region`) and `dim_products` (`brand`, `unit_price`) without coupling streaming Spark jobs to OLTP read queries.
-- **Automated Testing**: Enforce column integrity (`not_null`) via `dbt test` and Gold warehouse assertions via Great Expectations.
+- **ACID Lakehouse Scanning**: Read Delta tables via `get_delta_path` (`delta_scan(...)`) so overwrites and compaction never leak tombstoned Parquet files.
+- **SCD Type 2 & Model Contracts**: Track historical dimension changes (`snap_customers`, `snap_products`), join purchase facts point-in-time, enforce dbt column contracts (`contract: {enforced: true}`), and verify SQL logic with `unit_tests.yml`.
+- **Atomic WAP Isolation**: Execute dbt models and Great Expectations against `ecommerce_staging.duckdb` before promoting atomically to `ecommerce.duckdb`.
 
 ### 2.3 Business & Executive Stakeholder
-- **Real-Time KPI Monitoring**: Inspect Total Revenue, Units Sold, Cumulative Users, and Average Conversion Rate at `http://localhost:8088` (`admin` / `admin`).
-- **Customer & Brand Analytics**: Slice purchase performance across customer segments, geographic regions, and product brands.
-- **Pipeline Trust & Freshness**: Verify data recency (`last_ingest`) and live PyDeequ / Great Expectations pass rates directly in the dashboard.
+- **Real-Time KPI Monitoring**: Inspect exact Total Revenue, Units Sold, Cumulative Users, and Average Conversion Rate at `http://localhost:8088` (with optional read-only public guest access via `SUPERSET_PUBLIC_READONLY=true`).
+- **Pipeline Trust & DLQ Visibility**: Monitor `last_ingest`, `gx_quality_checks`, `pydeequ_quality_checks`, and `quarantine_summary` materialized directly inside `ecommerce.duckdb`.
 
 ---
 
-## 3. Speed Layer Requirements (`streaming_layer/`)
+## 3. Speed & Medallion Silver Layer Requirements (`streaming_layer/`)
 
-### 3.1 Avro Schema Governance & Event Ingestion
-- **Producer (`ecommerce_producer.py`)**: Reads line-delimited JSON events (`input_data/ecommerce_events.json`), serializes payloads with `AvroSerializer` against `schemas/ecommerce_event.avsc`, keys messages by `user_id`, and publishes to Kafka topic `ecommerce_events` (`localhost:9092`) with delivery callback logging.
-- **Consumer (`ecommerce_aggregation_job.py`)**: Connects to Kafka (`startingOffsets: earliest`, `failOnDataLoss: false`), deserializes Confluent Avro binary payloads dynamically via `get_abris_from_avro_column` (ABRiS `6.4.0` Py4J bridge), casts `event_time` to `TIMESTAMP`, and applies a `10 seconds` watermark.
+### 3.1 Avro Schema Governance & Synthetic/File Event Producer
+- **Producer (`ecommerce_producer.py`)**: Supports deterministic JSONL replay (`--mode file`) and realistic synthetic funnel traffic (`--mode synthetic` with `--count`, `--continuous`, `--rate`, `--late-event-ratio`, and `--anomaly-ratio`) serialized with `AvroSerializer` against `ecommerce_event.avsc` and Redpanda Schema Registry (`:8081`).
+- **Consumer (`ecommerce_aggregation_job.py`)**: Connects once to `ecommerce_events`, deserializes Avro via `get_abris_from_avro_column` (ABRiS `6.4.0`), casts `event_time` to `TIMESTAMP`, and applies a `10 seconds` watermark.
 
-### 3.2 Stateful Aggregations (`aggregations.py`)
-The Spark engine must compute **8 concurrent KPI aggregations**:
-1. **`url_counts`**: Sliding window (`10s` duration / `5s` slide) event counts grouped by `url` and `event_type`.
-2. **`user_counts`**: Sliding window activity counts grouped by `user_id`.
-3. **`url_conversion`**: Pivoted `view` vs. `purchase` counts per `url` with `conversion_rate = round(purchase / view, 4)`.
-4. **`category_sales`**: Purchase-only revenue and unit volume grouped by `category`.
-5. **`product_sales`**: Purchase-only revenue and unit volume preserving `user_id`, `product_id`, and `category` keys for OLTP dimensional joins.
-6. **`cart_metrics`**: Pivoted `view`, `add_to_cart`, and `purchase` counts computing `add_to_cart_rate` and `cart_abandonment`.
-7. **`top_urls_per_user`**: Base `user_id` + `url` visit counts per window for Top-N ranking in the batch layer.
-8. **`session_funnels`**: `15-minute` (`900 seconds`) session windows per `user_id` tracking funnel progression flags (`has_view`, `has_add`, `has_purchase`).
-
-### 3.3 Dual Execution Modes & ACID Sinks (`sinks.py`)
-- **Streaming Mode (`--sink delta` or `--sink console`)**: Writes continuous micro-batches (`trigger: 5 seconds`, `output_mode: append`) with per-sink checkpoint directories (`projects/ecommerce/checkpoints/delta_<name>`).
-- **Batch Mode (`--batch`)**: Evaluates bounded Kafka input, executes `run_pydeequ_verification`, and overwrites Delta Lake tables in a single pass.
+### 3.2 Medallion Silver/DLQ & Stateful Aggregations (`aggregations.py`, `sinks.py`)
+1. **Single-Pass Micro-Batch (`write_silver_and_quarantine_microbatch`)**: Caches each micro-batch once (`persist()`), runs live PyDeequ verification, routes valid rows to date-partitioned `silver_ecommerce_events`, and routes invalid rows to `quarantine_events` with `quarantine_reason`.
+2. **8 Compacted KPI Delta Sinks (`materialize_kpi_sinks_from_silver`)**: Computes non-overlapping `10s` tumbling windows (`url_counts`, `user_counts`, `url_conversion`, `category_sales`, `product_sales`, `cart_metrics`, `top_urls_per_user`) and `15-minute` (`900s`) `session_funnels` in a single cached read over Silver.
+3. **Execution Modes**: `--mode available-now` (incremental catch-up default), `--mode streaming` (continuous `30s` trigger), and `--mode batch`.
 
 ---
 
 ## 4. OLTP Dimension Sync Requirements (`oltp_sync/`)
 
-- **Connection Pooling (`config.py`)**: Maintain a thread-safe `ThreadedConnectionPool` singleton (`minconn=1`, `maxconn=5`) initialized via `POSTGRES_HOST`, `POSTGRES_PORT`, `POSTGRES_DB`, `POSTGRES_USER`, and `POSTGRES_PASSWORD` with transactional commit/rollback context management (`get_connection()`).
-- **Idempotent Seeding & Extraction (`sync_dimensions.py`)**:
-  - Create `dim_customers` and `dim_products` tables if absent and upsert baseline records via `ON CONFLICT (...) DO UPDATE`.
-  - Extract dimension tables into Pandas DataFrames and write Parquet snapshots (`output_data/dim_customers/dim_customers.parquet` and `output_data/dim_products/dim_products.parquet`) using `pyarrow`.
-  - Support `--seed-from-defaults-on-offline` so standalone local runs succeed when PostgreSQL is offline.
+- **Connection Pooling (`config.py`)**: Thread-safe `ThreadedConnectionPool` (`minconn=1`, `maxconn=5`) with commit/rollback context management (`get_connection()`).
+- **Zero-Pandas PyArrow Export (`sync_dimensions.py`)**: Upserts `dim_customers` and `dim_products` in PostgreSQL 16 and exports typed ZSTD Parquet files directly via `pyarrow.Table.from_pydict` (no Pandas copy), supporting `--seed-from-defaults-on-offline` and `--simulate-scd-change`.
 
 ---
 
-## 5. Batch Layer & Gold Warehouse Requirements (`batch_layer/`)
+## 5. Batch Layer, WAP & Gold Warehouse Requirements (`batch_layer/`, `wap_duckdb.py`)
 
-- **Engine**: DuckDB (`ecommerce.duckdb`) driven by `dbt-duckdb` (`4` threads).
-- **Staging Views (`models/staging/`)**: Materialize 9 non-persisted views (`cart_metrics`, `category_sales`, `dim_customers`, `dim_products`, `product_sales`, `session_funnels`, `top_urls_per_user`, `url_conversion`, `url_counts`) with explicit type casts and `not_null` column tests.
-- **Gold Analytical Marts (`models/marts/`)**: Materialize 9 persisted tables covering category sales (`daily_category_sales`, `monthly_category_sales`), URL funnels (`daily_url_conversion`, `daily_top_urls`, `daily_top_urls_per_user`), user cohorts (`cumulative_users`, `new_vs_returning_users`), and OLTP-enriched marts (`customer_segment_spending`, `brand_category_performance`).
-- **Freshness Monitor (`models/monitors/last_ingest.sql`)**: Expose `latest_stream_window`, `batch_processed_at`, and `pipeline_latency` for observability.
+- **Engine**: DuckDB `1.5.6` with native `delta` extension pre-loaded via `profiles.yml`.
+- **Staging Views (`models/staging/`)**: 9 Delta-backed views (`silver_ecommerce_events`, `quarantine_events`, `cart_metrics`, `category_sales`, `product_sales`, `session_funnels`, `top_urls_per_user`, `url_conversion`, `url_counts`) using `delta_scan()` + 2 Parquet dimension views (`dim_customers`, `dim_products`).
+- **SCD Type 2 Snapshots (`snapshots/`)**: `snap_customers` and `snap_products`.
+- **Gold Analytical Marts (`models/marts/`)**: 9 marts including incremental (`delete+insert`) time-series tables, SCD2 point-in-time enriched marts, enforced model contracts (`contract: {enforced: true}`), and native dbt `unit_tests.yml`.
+- **Materialized Monitors (`models/monitors/`)**: `last_ingest`, `gx_quality_checks`, `pydeequ_quality_checks`, and `quarantine_summary` materialized as tables for atomic WAP promotion.
 
 ---
 
-## 6. Data Quality & Cloud Sync Requirements (`quality/`, `cloud_sync/`)
+## 6. Data Quality, Cloud FinOps & IaC (`quality/`, `cloud_sync/`, `infra/terraform/`)
 
-- **Spark Layer Quality (`streaming_layer/quality_checks.py`)**: Validate bounded Spark DataFrames with Amazon PyDeequ (`hasSize > 0`, `isComplete`, `isContainedIn`, `isNonNegative("price")`) and write `output_data/pydeequ_metrics/latest_report.json`.
-- **Warehouse Quality (`quality/validate_ecommerce.py`)**: Run Great Expectations (`ephemeral` context) across raw JSON events and Gold DuckDB marts (`daily_category_sales`, `daily_url_conversion`, `customer_segment_spending`), persisting `output_data/quality_reports/gx_validation_results.json` and failing non-zero when `--fail-on-error` is enabled.
-- **Optional GCP Lakehouse Sync (`cloud_sync/export_to_gcp.py`)**: When `GCP_SYNC_ENABLED=true`, upload local Parquet artifacts to Google Cloud Storage (`gs://<GCS_BUCKET>/ecommerce/curated/...`), truncate-load 5 Gold marts into BigQuery (`<GCP_PROJECT>.<BIGQUERY_DATASET>`), and run a BigQuery verification query (`to_dataframe()` via `db-dtypes`). When disabled, log a structured dry-run inventory and exit `0`.
+- **Spark Micro-Batch Quality (`quality_checks.py`)**: Live PyDeequ verification inside `foreachBatch` (gracefully handling empty batches), writing `pydeequ_checks.parquet` and `latest_report.json`.
+- **Warehouse Quality (`quality/validate_ecommerce.py`)**: Great Expectations Fluent API validating live `silver_ecommerce_events` via DuckDB `delta_scan()`, asserting quarantine DLQ ratio $\le$ `--max-quarantine-ratio`, and validating staging Gold marts.
+- **FinOps GCP Sync (`cloud_sync/export_to_gcp.py`) & Terraform (`infra/terraform/`)**: Exports 5 compacted ZSTD Gold Parquet files to GCS (7-day auto-expire lifecycle rule in Terraform), loads time-partitioned and clustered BigQuery tables directly from Parquet, and caps verification queries with `maximum_bytes_billed = 100 MB`.
 
 ---
 
 ## 7. Orchestration & Executive BI Requirements (`orchestration/`)
 
-- **Sensor-Driven Airflow DAG (`ecommerce_batch_refresh`)**: Scheduled every 15 minutes (`*/15 * * * *`, `catchup=False`), beginning with `DeltaStreamSensor` (`min_ready_tables=3`, `poke_interval=20s`, `timeout=600s`, `mode="reschedule"`) before executing OLTP sync $\rightarrow$ dbt staging $\rightarrow$ dbt marts $\rightarrow$ `dbt test` $\rightarrow$ Great Expectations $\rightarrow$ dbt monitors $\rightarrow$ GCP cloud sync.
-- **Apache Superset BI (`superset/`)**: Serve the declarative **E-Commerce Real-Time Intelligence** dashboard (`:8088`) backed by shared PostgreSQL 16 metadata, Redis 7 query/filter caching, and a read-only `duckdb-engine` connection querying all Gold marts and quality monitors (`last_ingest`, `gx_quality_checks`, `pydeequ_quality_checks`).
+- **Astronomer Cosmos Airflow DAG (`ecommerce_batch_refresh`)**: Scheduled every 15 minutes (`*/15 * * * *`), optionally executing synthetic producer + Spark `availableNow` (`SPARK_IN_AIRFLOW=true`), then `DeltaStreamSensor` $\rightarrow$ `sync_postgres_dimensions` $\rightarrow$ `prepare_wap_staging_db` $\rightarrow$ Cosmos `DbtTaskGroup` (serialized on `duckdb_write_pool`) $\rightarrow$ `run_great_expectations` $\rightarrow$ `dbt_build_monitors` $\rightarrow$ `publish_wap_duckdb` $\rightarrow$ `sync_cloud_warehouse`.
+- **Apache Superset BI (`superset/`)**: Declarative Dashboards-as-Code served over `duckdb-engine` (`read_only=True`, `pool_recycle=30s`, `pool_pre_ping=true`), Redis 7 caching, and optional public read-only guest mode.

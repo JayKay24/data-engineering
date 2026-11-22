@@ -10,6 +10,8 @@ allow_file_upload: false
 extra:
   allows_virtual_table_explore: true
   engine_params:
+    pool_recycle: 30
+    pool_pre_ping: true
     connect_args:
       read_only: true
 uuid: 11111111-1111-4111-8111-111111111111

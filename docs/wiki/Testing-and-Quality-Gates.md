@@ -2,123 +2,104 @@
 
 ## 1. Overview & Quality Philosophy
 
-The platform enforces a **4-Tier Quality & Verification Pyramid** spanning static build/lint checks, distributed Spark data quality constraints, warehouse SQL integrity assertions, and Gold analytical expectation suites.
+The platform enforces a **5-Tier Quality & Verification Pyramid** spanning static build/lint checks, automated hermetic `pytest` + dbt unit tests in CI, live Spark micro-batch verification with DLQ routing, dbt schema/contract assertions, and live Great Expectations gates prior to atomic WAP promotion.
 
 ```mermaid
 flowchart TD
-  subgraph Tier1 ["1. Static & Build Gates (Pants + Ruff)"]
-    Lint["./pants lint :: (Ruff Check)"]
-    Fmt["./pants fmt --check :: (Ruff Format)"]
-    Hooks["pre-commit (Local Commit Gate)"]
-    Pkg["./pants package :: (Hermetic PEX Builds)"]
+  subgraph Tier1 ["1. Static & CI Gates (Pants + Ruff + Terraform)"]
+    Lint["./pants lint :: & fmt --check ::"]
+    Superset["Superset YAML & Wiki Validators"]
+    TF["terraform fmt -check & validate"]
   end
 
-  subgraph Tier2 ["2. Speed Layer Verification (PyDeequ)"]
-    Deequ["EcommerceEventsQualityCheck<br/>(7 Distributed Spark Constraints)"]
+  subgraph Tier2 ["2. Automated Unit & Integration Tests (CI)"]
+    Pytest["./pants test :: (PySpark, Delta delta_scan, WAP, GX, Cosmos)"]
+    DbtUnit["dbt test --select test_type:unit (SQL Fixtures)"]
   end
 
-  subgraph Tier3 ["3. Batch Schema Assertions (dbt test)"]
-    DbtTests["not_null Integrity Tests<br/>(9 Staging Views + Enriched Marts)"]
+  subgraph Tier3 ["3. Live Speed Verification & DLQ (PyDeequ)"]
+    Deequ["foreachBatch PyDeequ VerificationSuite<br/>+ quarantine_events DLQ Routing"]
   end
 
-  subgraph Tier4 ["4. Gold Warehouse Gate (Great Expectations)"]
-    GX["Ephemeral GX Fluent Suites<br/>(Raw JSON + DuckDB Gold Marts)"]
+  subgraph Tier4 ["4. Batch Contracts & Tests (dbt)"]
+    DbtTests["Model Contracts (enforced: true)<br/>+ Staging/Mart/Monitor Schema Tests"]
   end
 
-  Tier1 --> Tier2 --> Tier3 --> Tier4
+  subgraph Tier5 ["5. Live Silver & Staging Gold Gate (Great Expectations)"]
+    GX["Ephemeral GX Fluent Suites<br/>(Live Silver Delta + DLQ Ratio + WAP Staging Gold)"]
+  end
+
+  Tier1 --> Tier2 --> Tier3 --> Tier4 --> Tier5
 ```
 
 ---
 
-## 2. The 4-Tier Verification Pyramid
+## 2. The 5-Tier Verification Pyramid
 
-### 2.1 Tier 1: Static Code, Dependency & Packaging Gates
+### 2.1 Tier 1: Static Code, Assets, Wiki & Infrastructure Gates
 
-Every Python module and Pants `BUILD` target is validated deterministically without external services:
-- **Ruff Linting & Formatting**: Configured in `pants.toml` (`pants.backend.experimental.python.lint.ruff.check` & `ruff.format`).
-- **Pre-Commit Enforcement**: `.pre-commit-config.yaml` triggers `./pants fmt` and `./pants lint` automatically on staged Python files before every commit.
-- **Pants Dependency Inference & PEX Packaging**: Verifies all imports resolve cleanly against `3rdparty/user_reqs.lock` and builds self-contained PEX executables (`producer`, `stream_job`, `quality_checks`, `sync_dimensions`, `validate`, `export`, `package_assets`, `validate_wiki`).
-
+Executed locally via `.pre-commit-config.yaml` and remotely in `.github/workflows/ci.yml`:
 ```bash
 ./pants fmt ::
 ./pants lint ::
-./pants peek ::
-./pants package \
-  projects/ecommerce/streaming_layer:producer \
-  projects/ecommerce/streaming_layer:stream_job \
-  projects/ecommerce/streaming_layer:quality_checks \
-  projects/ecommerce/oltp_sync:sync_dimensions \
-  projects/ecommerce/quality:validate \
-  projects/ecommerce/cloud_sync:export \
-  projects/ecommerce/orchestration/superset:package_assets \
-  docs:validate_wiki
+./pants run projects/ecommerce/orchestration/superset:package_assets
+./pants run docs:validate_wiki
+terraform -chdir=infra/terraform fmt -check -recursive
 ```
 
 ---
 
-### 2.2 Tier 2: Distributed Spark Data Quality (`PyDeequ`)
+### 2.2 Tier 2: Hermetic `pytest` & `dbt` Unit Tests
 
-Executed in `projects/ecommerce/streaming_layer/quality_checks.py` (`SPARK_VERSION=3.5`, Amazon Deequ `com.amazon.deequ:deequ:2.0.21-spark-3.5`):
-
-- **Constraints (`EcommerceEventsQualityCheck`)**:
-  1. `hasSize(lambda x: x > 0)`
-  2. `isComplete("user_id")`
-  3. `isComplete("url")`
-  4. `isComplete("event_type")`
-  5. `isComplete("event_time")`
-  6. `isContainedIn("event_type", ["view", "add_to_cart", "purchase"])`
-  7. `isNonNegative("price")`
-- **Artifact**: Writes structured JSON summary (`latest_report.json`) and flat Parquet table (`pydeequ_checks.parquet`) under `projects/ecommerce/output_data/pydeequ_metrics/` (exposed via `models/monitors/pydeequ_quality_checks.sql` in Apache Superset).
-- **Execution**:
-  ```bash
-  source .env && ./pants run projects/ecommerce/streaming_layer:quality_checks
-  # Also runs automatically during batch pipeline execution:
-  source .env && ./pants run projects/ecommerce/streaming_layer:stream_job -- --batch --sink delta
-  ```
+1. **Pants `pytest` Suite (`projects/ecommerce/tests/`)**:
+   - `test_aggregations.py`: Local Spark + Delta Lake session verifying `split_valid_and_quarantine_events`, exact non-doubled 10s tumbling sums, session funnels, and Spark Delta $\leftrightarrow$ DuckDB `delta_scan()` compatibility (including empty-quarantine initialization).
+   - `test_wap_and_duckdb.py`: Verifies `prepare_staging_db` / `publish_staging_db` isolation and atomic swap, plus `delta_scan()` ignoring tombstoned Parquet files across overwrites.
+   - `test_oltp_and_quality.py`: Verifies zero-Pandas PyArrow OLTP offline export, `--simulate-scd-change`, and Great Expectations validation against live Silver Delta & Gold DuckDB tables.
+   - `test_orchestration_and_assets.py`: Verifies deterministic synthetic producer anomalies, Superset YAML validation, BigQuery FinOps partitioning/clustering configs, dry-run cloud sync, `DeltaStreamSensor`, and Airflow + Astronomer Cosmos `DbtTaskGroup` DAG parsing.
+   ```bash
+   source .env && ./pants test ::
+   ```
+2. **Native dbt `1.12` SQL Unit Tests (`projects/ecommerce/batch_layer/models/marts/unit_tests.yml`)**:
+   - Verifies `daily_category_sales` exact summing, `daily_url_conversion` zero-view division safety, and `customer_segment_spending` point-in-time SCD Type 2 joins without requiring pre-existing tables.
+   ```bash
+   cd projects/ecommerce/batch_layer && ../../../.venv/bin/dbt test --select test_type:unit
+   ```
 
 ---
 
-### 2.3 Tier 3: Warehouse SQL & Schema Integrity (`dbt test`)
+### 2.3 Tier 3: Live Micro-Batch Spark Verification (`PyDeequ` + DLQ)
 
-Configured across `models/staging/schema.yml` and `models/marts/schema.yml`:
-
-- Validates `not_null` constraints on critical business keys and metrics across staging views (`cart_metrics`, `category_sales`, `dim_customers`, `dim_products`, `product_sales`, `session_funnels`, `top_urls_per_user`, `url_conversion`, `url_counts`) and OLTP-enriched marts (`customer_segment_spending`, `brand_category_performance`).
-- **Execution**:
-  ```bash
-  .venv/bin/dbt parse --project-dir projects/ecommerce/batch_layer --profiles-dir projects/ecommerce/batch_layer
-  # Or inside the batch container:
-  cd projects/ecommerce/batch_layer && make dbt-build
-  ```
+Executed inside `foreachBatch` (`write_silver_and_quarantine_microbatch`) as well as standalone (`projects/ecommerce/streaming_layer:quality_checks`):
+- Evaluates `hasSize > 0`, completeness (`user_id`, `url`, `event_type`, `event_time`), `isContainedIn("event_type", ["view", "add_to_cart", "purchase"])`, and `isNonNegative("price")`.
+- Persists `latest_report.json` and `pydeequ_checks.parquet` under `output_data/pydeequ_metrics/` (safe on empty batches).
+- Routes invalid records to `quarantine_events` Delta DLQ so clean events proceed uninterrupted into `silver_ecommerce_events`.
 
 ---
 
-### 2.4 Tier 4: Batch & Gold Warehouse Validation (`Great Expectations`)
+### 2.4 Tier 4: Warehouse Contracts & Schema Integrity (`dbt`)
 
-Executed in `projects/ecommerce/quality/validate_ecommerce.py` using an ephemeral Great Expectations Fluent API context (`gx.get_context(mode="ephemeral")`):
+Configured across `models/staging/schema.yml`, `models/marts/schema.yml`, and `models/monitors/schema.yml`:
+- Enforces dbt **Model Contracts** (`contract: {enforced: true}`) with explicit DuckDB column `data_type`s (`date`, `varchar`, `double`, `bigint`) on core Gold marts.
+- Validates `not_null` and `accepted_values` tests across staging views, SCD2-enriched marts, and monitor tables.
 
-- **Raw Event Feed Suite (`ecommerce_raw_events_suite`)**: Validates `user_id`, `url`, `event_type`, `event_time` completeness and allowed `event_type` values (`["view", "add_to_cart", "purchase"]`).
-- **Gold Warehouse Suites (`ecommerce.duckdb`)**:
-  - `gold_daily_category_sales_suite`: `category` not null; `daily_revenue >= 0`; `daily_units >= 0`.
-  - `gold_daily_url_conversion_suite`: `url` not null; `0.0 <= avg_conversion_rate <= 1.0`.
-  - `gold_customer_segment_spending_suite`: `user_id`, `segment` not null; `total_revenue >= 0`.
-- **Lock-Safe Access**: Reads DuckDB via `connect_duckdb_readonly`, automatically falling back to a temporary snapshot if another process holds a lock.
-- **Artifact**: Saves structured results to `output_data/quality_reports/gx_validation_results.json` and `output_data/quality_reports/gx_checks.parquet` (exposed via `models/monitors/gx_quality_checks.sql` in Apache Superset).
-- **Execution**:
-  ```bash
-  ./pants run projects/ecommerce/quality:validate -- --fail-on-error
-  ```
+---
+
+### 2.5 Tier 5: Live Silver & WAP Staging Gold Gate (`Great Expectations`)
+
+Executed in `projects/ecommerce/quality/validate_ecommerce.py`:
+- **Live Silver Suite (`ecommerce_silver_events_suite`)**: Queries `silver_ecommerce_events` via DuckDB `delta_scan()` (with `--fallback-json` support for offline smoke runs).
+- **Quarantine DLQ Ratio Gate (`quarantine_dlq_threshold_suite`)**: Ensures quarantined rows do not exceed `--max-quarantine-ratio` (default `0.5`).
+- **Gold Staging Suites**: Validates `daily_category_sales`, `daily_url_conversion`, `customer_segment_spending`, and `brand_category_performance` inside `ecommerce_staging.duckdb` **before** `wap_duckdb.py publish` promotes the database to serving.
 
 ---
 
 ## 3. Standalone CLI & Local Self-Review Workflow
 
-Per `agents.md`, every change undergoes a structured local self-review and verification pass prior to committing and opening a PR against `develop`:
-
 ```mermaid
 flowchart LR
   Code["1. Implement Changes<br/>(Feature Branch)"] --> Format["2. ./pants fmt :: & ./pants lint ::"]
-  Format --> Verify["3. Run Target Verification<br/>(oltp_sync, quality, cloud_sync, pydeequ, dbt)"]
-  Verify --> Diff["4. Local git diff Self-Review<br/>(PySpark best practices, edge cases, docs sync)"]
-  Diff --> Commit["5. git commit (pre-commit hooks) & push"]
-  Commit --> PR["6. Open PR targeting develop"]
+  Format --> Tests["3. ./pants test :: & dbt unit tests"]
+  Tests --> Diff["4. Local git diff Self-Review & Docs Sync"]
+  Diff --> Commit["5. git commit & push"]
+  Commit --> PR["6. Open PR targeting develop (CI gates run)"]
 ```

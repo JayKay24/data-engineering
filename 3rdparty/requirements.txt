@@ -16,3 +16,5 @@ duckdb>=1.1.0
 duckdb-engine>=0.13.0
 dbt-duckdb>=1.8.0
 apache-airflow-providers-postgres>=5.11.0
+astronomer-cosmos>=1.11.0,<1.16.0
+pytest>=8.0.0,<9.0.0

@@ -5,3 +5,5 @@ ecommerce_batch:
       type: duckdb
       path: "{{ env_var('DUCKDB_PATH', 'data/ecommerce.duckdb') }}"
       threads: 4
+      extensions:
+        - delta

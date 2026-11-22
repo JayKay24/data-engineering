@@ -1,4 +1,4 @@
-{{ config(materialized='view') }}
+{{ config(materialized='table') }}
 
 select
   engine,
@@ -10,4 +10,4 @@ select
   column_name,
   cast(check_success as boolean) as check_success,
   cast(unexpected_count as integer) as unexpected_count
-from {{ get_stream_path('quality_reports') }}
+from {{ get_parquet_path('quality_reports') }}

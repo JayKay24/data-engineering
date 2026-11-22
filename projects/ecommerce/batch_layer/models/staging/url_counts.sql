@@ -6,4 +6,4 @@ select
   url,
   event_type,
   cast(count as integer) as count
-from {{ get_stream_path('url_counts') }}
+from {{ get_delta_path('url_counts') }}

@@ -1,48 +1,36 @@
-version: '2'
 services:
-  zookeeper:
-    image: confluentinc/cp-zookeeper:7.2.1
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-    healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "2181"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  kafka:
-    image: confluentinc/cp-kafka:7.2.1
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v24.2.11
+    container_name: ecommerce-redpanda
+    command:
+      - redpanda
+      - start
+      - --smp=1
+      - --memory=350M
+      - --reserve-memory=0M
+      - --overprovisioned
+      - --node-id=0
+      - --kafka-addr=internal://0.0.0.0:19092,external://0.0.0.0:9092
+      - --advertise-kafka-addr=internal://redpanda:19092,external://localhost:9092
+      - --schema-registry-addr=internal://0.0.0.0:8081,external://0.0.0.0:8081
+      - --rpc-addr=redpanda:33145
+      - --advertise-rpc-addr=redpanda:33145
     ports:
       - "9092:9092"
-    depends_on:
-      zookeeper:
-        condition: service_healthy
-    environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9092
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-    healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "9092"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  schema-registry:
-    image: confluentinc/cp-schema-registry:7.2.1
-    ports:
       - "8081:8081"
-    depends_on:
-      kafka:
-        condition: service_healthy
-    environment:
-      SCHEMA_REGISTRY_HOST_NAME: schema-registry
-      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: PLAINTEXT://kafka:29092
+      - "9644:9644"
+    volumes:
+      - redpanda_data:/var/lib/redpanda/data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/subjects"]
+      test:
+        [
+          "CMD-SHELL",
+          "rpk cluster health | grep -E 'Healthy:.+true' && curl -sf http://localhost:8081/subjects",
+        ]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  redpanda_data:

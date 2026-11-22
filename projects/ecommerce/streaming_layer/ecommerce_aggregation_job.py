@@ -2,32 +2,22 @@
 
 import argparse
 import os
-from pyspark.sql import SparkSession
+import sys
+from pyspark.sql import DataFrame, SparkSession
 import yaml
 
-# Configure Spark version before importing PyDeequ
+# Configure Spark version and worker Python before importing PyDeequ / launching JVM
 os.environ.setdefault("SPARK_VERSION", "3.5")
+os.environ.setdefault("PYSPARK_PYTHON", sys.executable)
+os.environ.setdefault("PYSPARK_DRIVER_PYTHON", sys.executable)
 
 import pydeequ  # noqa: E402
 
 from projects.common.logger import get_logger  # noqa: E402
-from projects.ecommerce.streaming_layer.aggregations import (  # noqa: E402
-    aggregate_cart_metrics,
-    aggregate_category_sales,
-    aggregate_product_sales,
-    aggregate_session_funnels,
-    aggregate_top_urls_per_user,
-    aggregate_url_conversion,
-    aggregate_url_counts,
-    aggregate_user_activity,
-    build_parsed_stream,
-)
-from projects.ecommerce.streaming_layer.quality_checks import (  # noqa: E402
-    run_pydeequ_verification,
-)
+from projects.ecommerce.streaming_layer.aggregations import build_parsed_stream  # noqa: E402
 from projects.ecommerce.streaming_layer.sinks import (  # noqa: E402
-    write_batch_sinks,
-    write_streaming_sinks,
+    materialize_kpi_sinks_from_silver,
+    write_silver_and_quarantine_microbatch,
 )
 
 logger = get_logger("EcommerceAggregationJob")
@@ -48,14 +38,14 @@ def load_config(path: str) -> dict:
 
 def init_spark_session(
     app_name: str = "EcommerceAggregationJob",
-    enable_pydeequ: bool = False,
+    enable_pydeequ: bool = True,
 ) -> SparkSession:
-    """Initialize a SparkSession with Kafka, ABRiS, and Delta Lake connectors.
+    """Initialize a SparkSession with Kafka, ABRiS, Delta Lake, and PyDeequ support.
 
     Args:
         app_name: Spark application name.
         enable_pydeequ: Whether to attach the Amazon Deequ Maven package and
-            exclusions for batch quality verification.
+            exclusions for micro-batch quality verification.
 
     Returns:
         Configured ``SparkSession`` instance.
@@ -72,6 +62,7 @@ def init_spark_session(
     if enable_pydeequ:
         packages.append(pydeequ.deequ_maven_coord)
 
+    shuffle_partitions = os.getenv("SPARK_SHUFFLE_PARTITIONS", "4")
     builder = (
         SparkSession.builder.appName(app_name)
         .config("spark.jars.repositories", "https://packages.confluent.io/maven/")
@@ -81,7 +72,14 @@ def init_spark_session(
             "spark.sql.catalog.spark_catalog",
             "org.apache.spark.sql.delta.catalog.DeltaCatalog",
         )
+        .config("spark.databricks.delta.optimizeWrite.enabled", "true")
+        .config("spark.databricks.delta.autoCompact.enabled", "true")
+        .config("spark.sql.shuffle.partitions", shuffle_partitions)
     )
+    ivy_dir = os.getenv("SPARK_IVY_DIR")
+    if ivy_dir:
+        builder = builder.config("spark.jars.ivy", ivy_dir)
+
     if enable_pydeequ:
         # Exclude f2j/arpack native coordinates that fail Ivy resolution in some Spark environments.
         builder = builder.config("spark.jars.excludes", pydeequ.f2j_maven_coord)
@@ -94,17 +92,24 @@ def init_spark_session(
 def run_pipeline(
     config_path: str,
     sink: str = "delta",
-    is_streaming: bool = True,
-    verify_quality: bool = False,
+    mode: str = "available-now",
+    verify_quality: bool = True,
 ) -> None:
-    """Orchestrate Kafka ingestion, KPI aggregations, quality checks, and sinks.
+    """Orchestrate single-pass Kafka ingestion, Medallion Silver/DLQ, and KPI sinks.
+
+    Uses a single Kafka + ABRiS consumer and ``foreachBatch`` micro-batch caching
+    so Kafka offsets are read once per batch, verified with PyDeequ, split into
+    ``silver_ecommerce_events`` and ``quarantine_events``, and rolled up into
+    compacted Delta KPI tables.
 
     Args:
         config_path: Path to the YAML pipeline configuration file.
         sink: Target sink backend (``"delta"`` or ``"console"``).
-        is_streaming: When ``True``, runs Structured Streaming; when ``False``,
-            runs bounded batch processing.
-        verify_quality: Whether to enable PyDeequ quality checks in batch mode.
+        mode: Execution mode: ``"available-now"`` (incremental catch-up micro-batch
+            that terminates cleanly), ``"streaming"`` (continuous micro-batches),
+            or ``"batch"`` (single bounded read).
+        verify_quality: Whether to execute live PyDeequ verification inside
+            micro-batch processing.
     """
     cfg = load_config(config_path)
     kafka_cfg, sr_cfg = cfg.get("kafka_config", {}), cfg.get("schema_registry", {})
@@ -117,9 +122,20 @@ def run_pipeline(
     sr_url = os.getenv(
         "SCHEMA_REGISTRY_URL", sr_cfg.get("url", "http://localhost:8081")
     )
+    output_dir = os.getenv(
+        "SPARK_OUTPUT_BASE_DIR",
+        storage_cfg.get("output_base_dir", "projects/ecommerce/output_data"),
+    )
+    checkpoint_dir = os.getenv(
+        "SPARK_CHECKPOINT_BASE_DIR",
+        storage_cfg.get("checkpoint_base_dir", "projects/ecommerce/checkpoints"),
+    )
+    silver_table = storage_cfg.get("silver_table", "silver_ecommerce_events")
+    quarantine_table = storage_cfg.get("quarantine_table", "quarantine_events")
+    silver_path = os.path.join(output_dir, silver_table)
+    ts_field = win_cfg.get("timestamp_field", "event_time")
 
-    run_deequ = (not is_streaming) or verify_quality
-    spark = init_spark_session(enable_pydeequ=run_deequ)
+    spark = init_spark_session(enable_pydeequ=verify_quality)
     try:
         kafka_opts = {
             "kafka.bootstrap.servers": bootstrap,
@@ -128,9 +144,10 @@ def run_pipeline(
             # Tolerate topic resets/offset expiration in local dev and demo runs.
             "failOnDataLoss": "false",
         }
+        is_stream_source = mode in ("available-now", "streaming")
         df_raw = (
             spark.readStream.format("kafka").options(**kafka_opts).load()
-            if is_streaming
+            if is_stream_source
             else spark.read.format("kafka").options(**kafka_opts).load()
         )
 
@@ -139,85 +156,126 @@ def run_pipeline(
             df_raw,
             topic,
             sr_url,
-            win_cfg.get("timestamp_field", "event_time"),
+            ts_field,
             win_cfg.get("watermark_delay", "10 seconds"),
         )
 
-        output_dir = os.getenv(
-            "SPARK_OUTPUT_BASE_DIR",
-            storage_cfg.get("output_base_dir", "projects/ecommerce/output_data"),
-        )
-        checkpoint_dir = os.getenv(
-            "SPARK_CHECKPOINT_BASE_DIR",
-            storage_cfg.get("checkpoint_base_dir", "projects/ecommerce/checkpoints"),
-        )
-
-        if run_deequ and not is_streaming:
-            run_pydeequ_verification(spark, parsed, output_dir)
-
-        ts_f = win_cfg.get("timestamp_field", "event_time")
-        win_d = win_cfg.get("window_duration", "10 seconds")
-        slide_d = win_cfg.get("slide_duration", "5 seconds")
-        gap_sec = win_cfg.get("session_gap_seconds", 900)
-
-        # Build KPI aggregation streams
-        streams = {
-            "url_counts": aggregate_url_counts(parsed, ts_f, win_d, slide_d),
-            "user_counts": aggregate_user_activity(parsed, ts_f, win_d, slide_d),
-            "url_conversion": aggregate_url_conversion(parsed, ts_f, win_d, slide_d),
-            "category_sales": aggregate_category_sales(parsed, ts_f, win_d, slide_d),
-            "product_sales": aggregate_product_sales(parsed, ts_f, win_d, slide_d),
-            "cart_metrics": aggregate_cart_metrics(parsed, ts_f, win_d, slide_d),
-            "top_urls_per_user": aggregate_top_urls_per_user(
-                parsed, ts_f, win_d, slide_d
-            ),
-            "session_funnels": aggregate_session_funnels(parsed, ts_f, gap_sec),
-        }
-
-        if is_streaming:
-            queries = write_streaming_sinks(
-                streams,
-                sink,
-                storage_cfg.get("output_mode", "append"),
-                storage_cfg.get("trigger_processing_time", "5 seconds"),
-                output_dir,
-                checkpoint_dir,
+        if mode == "batch":
+            write_silver_and_quarantine_microbatch(
+                spark,
+                parsed,
+                batch_id=0,
+                output_base_dir=output_dir,
+                enable_pydeequ=verify_quality,
+                silver_table=silver_table,
+                quarantine_table=quarantine_table,
+                timestamp_field=ts_field,
             )
+            materialize_kpi_sinks_from_silver(
+                spark, silver_path, sink, output_dir, win_cfg
+            )
+            logger.info("Batch Medallion execution completed successfully.")
+            return
+
+        def _process_microbatch(batch_df: DataFrame, batch_id: int) -> None:
+            stats = write_silver_and_quarantine_microbatch(
+                spark,
+                batch_df,
+                batch_id=batch_id,
+                output_base_dir=output_dir,
+                enable_pydeequ=verify_quality,
+                silver_table=silver_table,
+                quarantine_table=quarantine_table,
+                timestamp_field=ts_field,
+            )
+            # In continuous streaming mode, keep KPI Delta tables fresh after new Silver commits.
+            if mode == "streaming" and stats["valid_rows"] > 0:
+                materialize_kpi_sinks_from_silver(
+                    spark, silver_path, sink, output_dir, win_cfg
+                )
+
+        os.makedirs(checkpoint_dir, exist_ok=True)
+        silver_checkpoint = os.path.join(checkpoint_dir, "silver_ingest")
+        writer = (
+            parsed.writeStream.foreachBatch(_process_microbatch)
+            .option("checkpointLocation", silver_checkpoint)
+            .queryName("ecommerce_silver_medallion")
+        )
+        if mode == "available-now":
+            query = writer.trigger(availableNow=True).start()
             logger.info(
-                "Active streaming queries: %d (%s). Monitoring with fail-fast termination...",
-                len(queries),
-                ", ".join(streams.keys()),
+                "Started incremental availableNow Silver ingestion (checkpoint=%s)...",
+                silver_checkpoint,
             )
-            spark.streams.awaitAnyTermination()
+            query.awaitTermination()
+            materialize_kpi_sinks_from_silver(
+                spark, silver_path, sink, output_dir, win_cfg
+            )
+            logger.info("availableNow Medallion ingestion and KPI rollup complete.")
         else:
-            write_batch_sinks(streams, sink, output_dir)
-            logger.info("Batch execution completed successfully.")
+            trigger_interval = storage_cfg.get("trigger_processing_time", "30 seconds")
+            query = writer.trigger(processingTime=trigger_interval).start()
+            logger.info(
+                "Started continuous Medallion streaming (trigger=%s, checkpoint=%s)...",
+                trigger_interval,
+                silver_checkpoint,
+            )
+            query.awaitTermination()
     except KeyboardInterrupt:
         logger.info("Pipeline terminated by user.")
     finally:
+        if verify_quality:
+            try:
+                spark.sparkContext._gateway.shutdown_callback_server()
+            except Exception:
+                pass
         spark.stop()
 
 
 if __name__ == "__main__":
     script_dir = os.path.dirname(os.path.abspath(__file__))
     parser = argparse.ArgumentParser(
-        description="E-Commerce Real-Time Streaming Aggregation Pipeline."
+        description="E-Commerce Real-Time Medallion Aggregation Pipeline."
     )
     parser.add_argument(
         "--config", default=os.path.join(script_dir, "config/ecommerce_config.yml")
     )
     parser.add_argument("--sink", choices=["delta", "console"], default="delta")
-    parser.add_argument("--batch", action="store_true")
+    parser.add_argument(
+        "--mode",
+        choices=["available-now", "streaming", "batch"],
+        default="available-now",
+        help="Execution mode: incremental availableNow (default), continuous streaming, or bounded batch.",
+    )
+    parser.add_argument(
+        "--batch",
+        action="store_true",
+        help="Backward-compatible alias for --mode batch.",
+    )
     parser.add_argument(
         "--verify-quality",
+        dest="verify_quality",
         action="store_true",
-        help="Run PyDeequ verification on bounded batch input.",
+        default=True,
+        help="Run PyDeequ verification inside micro-batch processing (default: enabled).",
+    )
+    parser.add_argument(
+        "--no-verify-quality",
+        dest="verify_quality",
+        action="store_false",
+        help="Disable PyDeequ verification during ingestion.",
     )
     args = parser.parse_args()
 
+    effective_mode = "batch" if args.batch else args.mode
     run_pipeline(
         args.config,
         sink=args.sink,
-        is_streaming=not args.batch,
+        mode=effective_mode,
         verify_quality=args.verify_quality,
     )
+    if args.verify_quality:
+        # PyDeequ leaves JVM callback daemon threads alive after spark.stop(); force clean exit.
+        sys.stdout.flush()
+        sys.stderr.flush()
+        os._exit(0)
