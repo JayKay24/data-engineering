@@ -22,8 +22,22 @@ from cosmos import (  # pants: no-infer-dep
 import yaml
 
 _THIS_DIR = Path(__file__).resolve().parent
-_ECOMMERCE_DIR = _THIS_DIR.parent.parent
-_REPO_ROOT = _ECOMMERCE_DIR.parent.parent
+_ECOMMERCE_DIR = Path(
+    os.environ.get(
+        "ECOMMERCE_PROJECT_DIR",
+        "/opt/project"
+        if Path("/opt/project").is_dir()
+        else str(_THIS_DIR.parent.parent),
+    )
+)
+_REPO_ROOT = Path(
+    os.environ.get(
+        "REPO_ROOT",
+        "/opt/repo"
+        if Path("/opt/repo").is_dir()
+        else str(_ECOMMERCE_DIR.parent.parent),
+    )
+)
 
 _CONFIG_PATH = Path(
     os.environ.get(
