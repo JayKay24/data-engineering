@@ -37,9 +37,9 @@ flowchart TD
 ```
 
 ### 2.1 Data Engineer
-- **Hermetic Execution & Testing**: Execute every pipeline entry point as a reproducible Pants `pex_binary` (`./pants run ...`) and run `./pants test ::` + `.github/workflows/ci.yml` against Python `3.10.9` and `3rdparty/user_reqs.lock`.
-- **Low-Footprint Production Hosting**: Run the unified stack (`-f orchestration/docker-compose.yml -f orchestration/docker-compose.prod.yml`) on a ~2.5 GB RAM budget using single-binary Redpanda (`350 MB`, included from `projects/common/docker/docker-compose.yml`), `availableNow` Spark bursts, and Terraform-managed Free-Tier GCP resources (`infra/terraform/`).
-- **Stream Governance**: Enforce Avro schema contracts in Redpanda Schema Registry (`:8081`), run PyDeequ inside `foreachBatch`, and isolate malformed events in `quarantine_events`.
+- **Hermetic Execution & Testing**: Execute every pipeline entry point as a reproducible Pants [PEX](Glossary#pex) (`pex_binary`, `./pants run ...`) and run `./pants test ::` + `.github/workflows/ci.yml` against Python `3.10.9` and `3rdparty/user_reqs.lock`.
+- **Low-Footprint Production Hosting**: Run the unified stack (`-f orchestration/docker-compose.yml -f orchestration/docker-compose.prod.yml`) on a ~2.5 GB RAM budget using single-binary Redpanda (`350 MB`, included from `projects/common/docker/docker-compose.yml`), [availableNow](Glossary#availablenow) Spark bursts, and Terraform-managed Free-Tier GCP resources (`infra/terraform/`).
+- **Stream Governance**: Enforce [Avro](Glossary#avro) schema contracts in Redpanda [Schema Registry](Glossary#schema-registry) (`:8081`), run [PyDeequ](Glossary#pydeequ) inside [foreachBatch](Glossary#foreachbatch), and isolate malformed events in `quarantine_events` ([DLQ](Glossary#dlq)).
 
 ### 2.2 Analytics Engineer
 - **ACID Lakehouse Scanning**: Read Delta tables via `get_delta_path` (`delta_scan(...)`) so overwrites and compaction never leak tombstoned Parquet files.

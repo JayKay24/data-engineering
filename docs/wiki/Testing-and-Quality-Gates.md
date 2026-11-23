@@ -2,7 +2,7 @@
 
 ## 1. Overview & Quality Philosophy
 
-The platform enforces a **5-Tier Quality & Verification Pyramid** spanning static build/lint checks, automated hermetic `pytest` + dbt unit tests in CI, live Spark micro-batch verification with DLQ routing, dbt schema/contract assertions, and live Great Expectations gates prior to atomic WAP promotion.
+The platform enforces a **5-Tier Quality & Verification Pyramid** spanning static build/lint checks, automated hermetic `pytest` + [dbt](Glossary#dbt) unit tests in [CI](Glossary#ci), live Spark micro-batch verification with [DLQ](Glossary#dlq) routing, dbt schema/contract assertions, and live [Great Expectations](Glossary#gx) gates prior to atomic [WAP](Glossary#wap) promotion.
 
 ```mermaid
 flowchart TD

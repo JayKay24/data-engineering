@@ -3,11 +3,11 @@
 ## 1. Overview of Schema & Quality Governance
 
 The platform enforces schema contracts, mathematical exactness, and operational isolation across five layers:
-1. **Ingress Contract Enforcement**: Redpanda Schema Registry (`:8081`) + Avro (`ecommerce_event.avsc`) + ABRiS.
-2. **Micro-Batch Speed Verification & Quarantine DLQ**: Live Amazon PyDeequ inside `foreachBatch` + `split_valid_and_quarantine_events` routing domain violations to `quarantine_events`.
-3. **Batch Schema & Model Contracts**: dbt `1.12` schema tests, enforced `contract: {enforced: true}`, and SQL unit tests (`unit_tests.yml`).
-4. **Live Silver & Gold Warehouse Gate**: Great Expectations Fluent API (`validate_ecommerce.py`) validating live `silver_ecommerce_events` via DuckDB `delta_scan()`, quarantine ratio bounds, and Gold marts.
-5. **Atomic Write-Audit-Publish (WAP)**: All dbt/GX writes target `ecommerce_staging.duckdb` and promote atomically (`CHECKPOINT;` + `os.replace()`) to `ecommerce.duckdb`.
+1. **Ingress Contract Enforcement**: Redpanda [Schema Registry](Glossary#schema-registry) (`:8081`) + [Avro](Glossary#avro) (`ecommerce_event.avsc`) + [ABRiS](Glossary#abris).
+2. **Micro-Batch Speed Verification & Quarantine [DLQ](Glossary#dlq)**: Live Amazon [PyDeequ](Glossary#pydeequ) inside [foreachBatch](Glossary#foreachbatch) + `split_valid_and_quarantine_events` routing domain violations to `quarantine_events`.
+3. **Batch Schema & [Model Contracts](Glossary#model-contract)**: [dbt](Glossary#dbt) `1.12` schema tests, enforced `contract: {enforced: true}`, and SQL unit tests (`unit_tests.yml`).
+4. **Live Silver & Gold Warehouse Gate**: [Great Expectations](Glossary#gx) Fluent API (`validate_ecommerce.py`) validating live `silver_ecommerce_events` via DuckDB `delta_scan()`, quarantine ratio bounds, and Gold marts.
+5. **Atomic Write-Audit-Publish ([WAP](Glossary#wap))**: All dbt/GX writes target `ecommerce_staging.duckdb` and promote atomically (`CHECKPOINT;` + `os.replace()`) to `ecommerce.duckdb`.
 
 ---
 
