@@ -1,7 +1,6 @@
 services:
   redpanda:
     image: docker.redpanda.com/redpandadata/redpanda:v24.2.11
-    container_name: ecommerce-redpanda
     command:
       - redpanda
       - start

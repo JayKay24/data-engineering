@@ -42,7 +42,7 @@ flowchart TD
 
 ## 📁 Project Architecture & Components
 
-*   [projects/common/docker/docker-compose.yml](../common/docker/docker-compose.yml): Single-binary **Redpanda** broker (`:9092` Kafka API, `:8081` Confluent-compatible Schema Registry, ~350 MB RAM).
+*   [projects/common/docker/docker-compose.yml](../common/docker/docker-compose.yml): Single-source **Redpanda** broker (`:9092` Kafka API, `:8081` Confluent-compatible Schema Registry, ~350 MB RAM), automatically included by `orchestration/docker-compose.yml`.
 
 ### 1. Speed & Medallion Silver Layer (`streaming_layer/`)
 *   [config/ecommerce_config.yml](streaming_layer/config/ecommerce_config.yml): Configuration defining Kafka topics, Schema Registry URL, non-overlapping `10s` tumbling windows, `10s` watermark, `30s` continuous trigger, and `silver_ecommerce_events` / `quarantine_events` Delta targets.
@@ -75,7 +75,7 @@ flowchart TD
 *   [config.py](cloud_sync/config.py) & [export_to_gcp.py](cloud_sync/export_to_gcp.py): Optional GCP sync exporting compacted ZSTD Gold Parquet snapshots to GCS (`ecommerce/gold/*.parquet`) and loading time-partitioned, clustered BigQuery tables with a `100 MB` `maximum_bytes_billed` FinOps guardrail (`projects/ecommerce/cloud_sync:export`).
 
 ### 6. Orchestration & Serving Layer (`orchestration/`)
-*   [docker-compose.yml](orchestration/docker-compose.yml) & [docker-compose.prod.yml](orchestration/docker-compose.prod.yml): Standard dev orchestration stack plus a unified low-RAM (<2.6 GB) production Compose stack bundling Redpanda, tuned Postgres 16, Redis 7, Airflow + Java 17/Spark, Superset 6.1.0, and optional Cloudflare Tunnel.
+*   [docker-compose.yml](orchestration/docker-compose.yml) & [docker-compose.prod.yml](orchestration/docker-compose.prod.yml): Standard dev orchestration stack (which uses Compose `include:` to bring up Redpanda on the same shared network) plus a lean low-RAM (<2.6 GB) production override file (`-f docker-compose.yml -f docker-compose.prod.yml`) adding tuned Postgres/Redis memory flags, `SPARK_IN_AIRFLOW=true`, `SUPERSET_PUBLIC_READONLY=true`, and optional Cloudflare Tunnel.
 *   [Dockerfile](orchestration/Dockerfile) & [superset/Dockerfile](orchestration/superset/Dockerfile): Lockfile-pinned containers deriving package constraints from `3rdparty/user_reqs.lock`.
 *   [dags/ecommerce_pipeline.py](orchestration/dags/ecommerce_pipeline.py): Airflow DAG combining optional `availableNow` Spark ingestion, `DeltaStreamSensor`, OLTP sync, atomic WAP prep, **Astronomer Cosmos** `DbtTaskGroup` (serialized on `duckdb_write_pool`), Great Expectations gate, materialized monitors, atomic WAP publish, and FinOps GCP sync.
 *   [superset/](orchestration/superset/): Declarative **Dashboards-as-Code** YAML bundle (`assets/`), `pool_recycle=30s` WAP-friendly DuckDB engine config, optional `SUPERSET_PUBLIC_READONLY` guest mode (`superset_config.py`), and Pants validator/packager (`package_assets.py`).
@@ -85,9 +85,11 @@ flowchart TD
 ## 🚀 Quickstart & Execution
 
 ### 1. Start Lightweight Redpanda Infrastructure
+If running only the streaming layer locally without Airflow/Superset:
 ```bash
 docker compose -f projects/common/docker/docker-compose.yml up -d
 ```
+*(If using the full orchestration stack via `cd projects/ecommerce/orchestration && make up`, Redpanda is started automatically on the same Compose network.)*
 
 ### 2. Stream E-Commerce Events to Redpanda
 ```bash
@@ -128,10 +130,10 @@ cd projects/ecommerce/batch_layer && ../../../.venv/bin/dbt test --select test_t
 ```bash
 cd projects/ecommerce/orchestration
 make build  # Builds lockfile-pinned Airflow & Superset container images
-make up     # Starts Airflow, Postgres, Redis, and Superset in background
+make up     # Starts Redpanda, Postgres, Redis, Airflow, and Superset in background
 make status # Checks container health status
 
-# Or launch the unified low-RAM production stack (includes Redpanda + availableNow Spark):
+# Or launch the unified low-RAM production stack (base + lean prod override):
 make prod-up
 ```
 - **Airflow Webserver UI:** `http://localhost:8080` (`admin` / `admin`)

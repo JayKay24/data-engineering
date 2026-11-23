@@ -33,7 +33,7 @@ This repository is a **Python Data Engineering Monorepo** managed by the **Pants
 * `projects/common/`: Shared monorepo utilities.
   * `logger.py`: Centralized structured logging factory (`get_logger`).
   * `kafka_avro.py`: Shared Avro producer serialization, schema loader, delivery callbacks, and PySpark ABRiS deserialization.
-  * `docker/docker-compose.yml`: Lightweight single-binary Redpanda Compose stack (`:9092` Kafka + `:8081` Schema Registry).
+  * `docker/docker-compose.yml`: Single-source lightweight single-binary Redpanda Compose stack (`:9092` Kafka + `:8081` Schema Registry), included by `projects/ecommerce/orchestration/docker-compose.yml`.
   * `BUILD`: Pants build definition with `python_sources` target.
 * `projects/ecommerce/`: Unified E-Commerce Medallion Lakehouse Platform.
   * `duckdb_utils.py` & `wap_duckdb.py`: Lock-resilient read-only DuckDB snapshot reader and atomic Write-Audit-Publish (WAP) staging/promotion CLI (`projects/ecommerce:wap_duckdb`).
@@ -42,7 +42,7 @@ This repository is a **Python Data Engineering Monorepo** managed by the **Pants
   * `batch_layer/`: `dbt-duckdb` transformations using ACID `delta_scan()` (`get_delta_path`), SCD Type 2 snapshots (`snap_customers`, `snap_products`), incremental & contract-enforced Gold marts, native dbt `unit_tests.yml`, and materialized monitor tables (`last_ingest`, `gx_quality_checks`, `pydeequ_quality_checks`, `quarantine_summary`).
   * `quality/`: Great Expectations live Silver Delta, quarantine DLQ ratio, and staging Gold mart validation gates (`projects/ecommerce/quality:validate`).
   * `cloud_sync/`: Optional GCP lakehouse sync exporting compacted ZSTD Gold Parquet snapshots to GCS and loading time-partitioned, clustered BigQuery tables with a `100 MB` query guardrail (`projects/ecommerce/cloud_sync:export`).
-  * `orchestration/`: Containerized Airflow 2.9 (`LocalExecutor` + `duckdb_write_pool` + Java 17/Spark `availableNow`) with Astronomer Cosmos `DbtTaskGroup`, Redis 7, Apache Superset 6.1.0 Dashboards-as-Code, and `docker-compose.prod.yml` for low-RAM (<2.6 GB) hosting.
+  * `orchestration/`: Containerized Airflow 2.9 (`LocalExecutor` + `duckdb_write_pool` + Java 17/Spark `availableNow`) with Astronomer Cosmos `DbtTaskGroup`, Redis 7, Apache Superset 6.1.0 Dashboards-as-Code, Compose `include:` for `projects/common/docker/docker-compose.yml`, and a lean `docker-compose.prod.yml` override for low-RAM (<2.6 GB) hosting.
   * `tests/`: Hermetic Pants `pytest` suite covering PySpark aggregations/quarantine, WAP & DuckDB `delta_scan()`, OLTP/GX gates, BigQuery FinOps specs, Superset YAML validation, and Airflow Cosmos DAG parsing (`./pants test ::`).
 * `.venv`: A root-level symlink pointing to the current active Pants-generated virtual environment.
 

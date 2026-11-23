@@ -38,7 +38,7 @@ flowchart TD
 
 ### 2.1 Data Engineer
 - **Hermetic Execution & Testing**: Execute every pipeline entry point as a reproducible Pants `pex_binary` (`./pants run ...`) and run `./pants test ::` + `.github/workflows/ci.yml` against Python `3.10.9` and `3rdparty/user_reqs.lock`.
-- **Low-Footprint Production Hosting**: Run the unified stack (`orchestration/docker-compose.prod.yml`) on a ~2.5 GB RAM budget using single-binary Redpanda (`350 MB`), `availableNow` Spark bursts, and Terraform-managed Free-Tier GCP resources (`infra/terraform/`).
+- **Low-Footprint Production Hosting**: Run the unified stack (`-f orchestration/docker-compose.yml -f orchestration/docker-compose.prod.yml`) on a ~2.5 GB RAM budget using single-binary Redpanda (`350 MB`, included from `projects/common/docker/docker-compose.yml`), `availableNow` Spark bursts, and Terraform-managed Free-Tier GCP resources (`infra/terraform/`).
 - **Stream Governance**: Enforce Avro schema contracts in Redpanda Schema Registry (`:8081`), run PyDeequ inside `foreachBatch`, and isolate malformed events in `quarantine_events`.
 
 ### 2.2 Analytics Engineer

@@ -74,7 +74,7 @@ data-engineering/
         ├── batch_layer/               # dbt + DuckDB delta_scan() staging, SCD2 snapshots, incremental contracted marts & unit tests
         ├── quality/                   # Great Expectations live Silver Delta, quarantine ratio & Gold mart gates
         ├── cloud_sync/                # Optional compacted GCS Parquet & FinOps-partitioned BigQuery export
-        ├── orchestration/             # Airflow 2.9 + Astronomer Cosmos DAG, atomic WAP DuckDB, Superset 6.1 BI & low-RAM prod Compose
+        ├── orchestration/             # Airflow 2.9 + Astronomer Cosmos DAG, atomic WAP DuckDB, Superset 6.1 BI & Compose prod override
         ├── tests/                     # Hermetic pytest suite (PySpark, DuckDB delta_scan, WAP, OLTP, GX, Cosmos DAG, Superset)
         └── wap_duckdb.py              # Atomic Write-Audit-Publish (WAP) DuckDB staging & promotion CLI
 ```
@@ -84,7 +84,7 @@ data-engineering/
 ## 📁 Projects & Documentation
 
 *   **[GitHub Wiki](https://github.com/JayKay24/data-engineering/wiki)** — Comprehensive engineering Wiki (`docs/wiki/`), automatically validated on PRs and synced to GitHub Wiki via `.github/workflows/wiki-sync.yml`.
-*   [projects/common/](projects/common/) — Shared monorepo utilities including unified structured logging, Kafka/Avro/ABRiS helpers, and the lightweight single-binary **Redpanda** (`:9092` Kafka + `:8081` Schema Registry) Docker Compose stack.
+*   [projects/common/](projects/common/) — Shared monorepo utilities including unified structured logging, Kafka/Avro/ABRiS helpers, and the lightweight single-binary **Redpanda** (`:9092` Kafka + `:8081` Schema Registry) Docker Compose definition (included by `projects/ecommerce/orchestration/docker-compose.yml`).
 *   [projects/ecommerce/](projects/ecommerce/) — End-to-end E-Commerce Medallion Lakehouse combining Redpanda/Avro streaming, single-consumer PySpark `foreachBatch` Silver/DLQ + PyDeequ checks, tumbling-window Delta KPIs, zero-Pandas PostgreSQL OLTP sync, dbt + DuckDB `delta_scan()` with SCD Type 2 snapshots, incremental contracted marts & unit tests, Great Expectations validation, atomic Write-Audit-Publish (WAP) DuckDB promotion, FinOps BigQuery export, and Airflow + Astronomer Cosmos + Apache Superset BI (see [projects/ecommerce/README.md](projects/ecommerce/README.md)).
 
 ---
