@@ -25,8 +25,9 @@ Explore the Data Engineering knowledge base by section:
 
 ### 📜 Decisions & History
 
-- **[Architecture Decision Records (ADRs)](Architecture-Decision-Records)**: Catalog of 12 foundational Architecture Decision Records (`ADR-001` through `ADR-012`) documenting context, decisions, alternatives considered, consequences, and PR links.
-- **[Project History & Milestones](Project-History)**: Chronological narrative of the monorepo's evolution across 7 phases and 25 pull requests, tracing how standalone data engineering sub-projects matured and amalgamated into `projects/ecommerce`.
+- **[Architecture Decision Records (ADRs)](Architecture-Decision-Records)**: Catalog of 17 foundational Architecture Decision Records (`ADR-001` through `ADR-017`) documenting context, decisions, alternatives considered, consequences, and PR links.
+- **[Project History & Milestones](Project-History)**: Chronological narrative of the monorepo's evolution across 8 phases, tracing how standalone data engineering sub-projects matured and amalgamated into `projects/ecommerce`.
+- **[Glossary](Glossary)**: Plain-English A–Z reference for acronyms and platform concepts (`WAP`, `DLQ`, `ABRiS`, `SCD Type 2`, `FinOps`, `delta_scan()`, etc.) used across this Wiki.
 
 ---
 

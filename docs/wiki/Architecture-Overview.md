@@ -69,7 +69,7 @@ flowchart TD
 ### 2.2 Redpanda Single-Binary Broker & ABRiS Py4J Bridge (`kafka_avro.py`)
 - **Broker (`projects/common/docker/docker-compose.yml`)**: Single-source **Redpanda (`v24.2.11`)** definition capped at `350 MB` RAM, exposing both the Kafka wire protocol (`:9092` external / `:19092` internal) and Confluent-compatible Schema Registry (`:8081`) without ZooKeeper or JVM heap bloat. It can be started standalone or automatically via Compose `include:` in `projects/ecommerce/orchestration/docker-compose.yml`.
 - **Producer Side (`create_avro_producer`)**: Pairs `SchemaRegistryClient` with `AvroSerializer` and `confluent_kafka.Producer` so events are validated against `ecommerce_event.avsc` prior to ingestion.
-- **Consumer Side (`get_abris_from_avro_column`)**: Bridges PySpark to Scala ABRiS (`za.co.absa.abris`) via `spark._jvm`, downloading the latest reader schema by `TopicNameStrategy` from Schema Registry (`:8081`) and deserializing binary `value` bytes into structured Spark SQL columns.
+- **Consumer Side (`get_abris_from_avro_column`)**: Bridges PySpark to Scala [ABRiS](Glossary#abris) (`za.co.absa.abris`) via `spark._jvm`, downloading the latest reader schema by `TopicNameStrategy` from [Schema Registry](Glossary#schema-registry) (`:8081`) and deserializing binary `value` bytes into structured Spark SQL columns.
 
 ---
 

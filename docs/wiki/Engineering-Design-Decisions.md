@@ -2,7 +2,7 @@
 
 ## 1. Overview
 
-Building a unified Lambda Architecture across PySpark, Delta Lake, DuckDB, PostgreSQL, Airflow, and Pants introduces subtle operational boundaries—particularly around streaming vs. batch APIs, embedded file-locked databases, cross-platform container builds, and native wheel loading. This document records the deliberate engineering decisions made to resolve these edge cases cleanly.
+Building a unified [Lambda Architecture](Glossary#lambda-architecture) across PySpark, [Delta Lake](Glossary#delta-lake), DuckDB, PostgreSQL, Airflow, and Pants introduces subtle operational boundaries—particularly around streaming vs. batch APIs, embedded file-locked databases, cross-platform container builds, and native wheel loading. This document records the deliberate engineering decisions made to resolve these edge cases cleanly.
 
 ---
 

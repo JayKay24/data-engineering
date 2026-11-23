@@ -76,6 +76,7 @@ This project is bootstrapped to work seamlessly with VS Code / Antigravity IDE w
    * **Architecture / Pants / Docker / Modules** $\rightarrow$ `docs/wiki/Architecture-Overview.md` & `docs/wiki/Architecture-Decision-Records.md`
    * **Requirements / Quality Gates / Tests** $\rightarrow$ `docs/wiki/Platform-Requirements.md`, `docs/wiki/Testing-and-Quality-Gates.md`, & `docs/wiki/Requirements-Traceability.md`
    * **Milestones / Edge-Case Decisions** $\rightarrow$ `docs/wiki/Project-History.md` & `docs/wiki/Engineering-Design-Decisions.md`
+   * **New Acronyms / Domain Concepts** $\rightarrow$ `docs/wiki/Glossary.md`
 5. **LOCAL SELF-REVIEW & ITERATION:** Before committing or opening a PR, review `git diff` locally for PySpark/data engineering best practices (partitioning, avoiding redundant `.collect()` on large datasets), Ruff/PEP8 compliance, edge cases, and test coverage, and iterate locally until all checks pass cleanly.
 
 ---

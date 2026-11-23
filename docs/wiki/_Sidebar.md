@@ -5,6 +5,7 @@
 #### 🌟 Overview
 
 - **[Home](Home)**
+- **[Glossary](Glossary)**
 
 #### 📋 Domain & Data Contracts
 

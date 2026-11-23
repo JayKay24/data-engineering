@@ -2,7 +2,7 @@
 
 ## 1. Executive Summary
 
-This document serves as the **living data dictionary and lineage specification** for the E-Commerce Medallion Lakehouse Platform (`projects/ecommerce`). It tracks every schema contract from raw Avro ingress and PostgreSQL OLTP master tables through Medallion Silver/DLQ Delta tables, compacted tumbling-window KPIs, dbt `delta_scan()` staging views, SCD Type 2 snapshots, and contracted Gold DuckDB analytical marts.
+This document serves as the **living data dictionary and lineage specification** for the E-Commerce [Medallion](Glossary#medallion-architecture) Lakehouse Platform (`projects/ecommerce`). It tracks every schema contract from raw [Avro](Glossary#avro) ingress and PostgreSQL [OLTP](Glossary#oltp) master tables through Medallion Silver/[DLQ](Glossary#dlq) [Delta](Glossary#delta-lake) tables, compacted [tumbling-window](Glossary#tumbling-window) [KPIs](Glossary#kpi), [dbt](Glossary#dbt) `delta_scan()` staging views, [SCD Type 2](Glossary#scd-type-2) snapshots, and contracted Gold DuckDB analytical marts.
 
 ---
 
