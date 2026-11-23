@@ -257,7 +257,7 @@ Replace `orchestration/viz/` (Streamlit + Plotly) with **Apache Superset (`6.1.0
 Running separate Confluent `cp-zookeeper`, `cp-kafka`, and `cp-schema-registry` JVM containers consumed ~2.5–3.0 GB RAM before ingesting a single event, making \$0–\$6/month cloud hosting impractical while relying on deprecated ZooKeeper metadata orchestration.
 
 ### Decision
-Replace the 3-container Confluent stack in `projects/common/docker/docker-compose.yml` with **Redpanda (`v24.2.11`)** (`--smp=1 --memory=350M`), exposing 100% wire-compatible Kafka (`:9092` / `:19092`) and Schema Registry (`:8081`) endpoints without modifying producer (`confluent-kafka[avro]`) or Spark ABRiS consumer code.
+Replace the 3-container Confluent stack in `projects/common/docker/docker-compose.yml` with **Redpanda (`v24.2.11`)** (`--smp=1 --memory=350M`), exposing 100% wire-compatible Kafka (`:9092` / `:19092`) and Schema Registry (`:8081`) endpoints without modifying producer (`confluent-kafka[avro]`) or Spark ABRiS consumer code. `projects/ecommerce/orchestration/docker-compose.yml` includes `projects/common/docker/docker-compose.yml` via Compose `include:` so `redpanda` shares the orchestration network (`redpanda:19092`), while `orchestration/docker-compose.prod.yml` acts as a lean override file (`-f docker-compose.yml -f docker-compose.prod.yml`) rather than duplicating service definitions.
 
 ### Consequences
 - **Positive**: Cuts broker RAM footprint by ~85% (~2.5 GB $\rightarrow$ ~350 MB) and eliminates ZooKeeper altogether.

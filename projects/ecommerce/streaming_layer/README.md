@@ -35,7 +35,7 @@ flowchart LR
 
 ## 📁 Project Structure
 
-*   [projects/common/docker/docker-compose.yml](../../common/docker/docker-compose.yml): Shared monorepo Zookeeper, Kafka, and Confluent Schema Registry (`:8081`) containers.
+*   [projects/common/docker/docker-compose.yml](../../common/docker/docker-compose.yml): Single-binary Redpanda (`:9092` Kafka + `:8081` Confluent-compatible Schema Registry) container definition (also included by `projects/ecommerce/orchestration/docker-compose.yml`).
 *   [config/ecommerce_config.yml](config/ecommerce_config.yml): Configuration defining Kafka parameters, Schema Registry endpoint, watermarking, sliding windows, and Delta Lake sinks.
 *   [schemas/ecommerce_event.avsc](schemas/ecommerce_event.avsc): Avro schema contract for e-commerce interaction and purchase events.
 *   [input_data/ecommerce_events.json](input_data/ecommerce_events.json): Sample raw e-commerce event stream dataset.
@@ -50,8 +50,8 @@ flowchart LR
 
 ## 🚀 Quickstart & Execution
 
-### 1. Start Infrastructure (Kafka, Zookeeper, Schema Registry)
-Make sure the shared Kafka container stack from `projects/common/docker` is running:
+### 1. Start Infrastructure (Redpanda Kafka & Schema Registry)
+Start the standalone Redpanda container from `projects/common/docker` (or run `make up` in `projects/ecommerce/orchestration` to start Redpanda + Airflow + Superset together):
 ```bash
 docker compose -f projects/common/docker/docker-compose.yml up -d
 ```

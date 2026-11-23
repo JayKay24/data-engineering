@@ -67,7 +67,7 @@ flowchart TD
 `get_logger(name)` enforces a unified log format (`YYYY-MM-DD HH:MM:SS [LEVEL] [logger_name] message`) over `stdout`, honoring `LOG_LEVEL` (default `INFO`) without duplicating root handlers across imported modules.
 
 ### 2.2 Redpanda Single-Binary Broker & ABRiS Py4J Bridge (`kafka_avro.py`)
-- **Broker (`projects/common/docker/docker-compose.yml`)**: Runs **Redpanda (`v24.2.11`)** capped at `350 MB` RAM, exposing both the Kafka wire protocol (`:9092` external / `:19092` internal) and Confluent-compatible Schema Registry (`:8081`) without ZooKeeper or JVM heap bloat.
+- **Broker (`projects/common/docker/docker-compose.yml`)**: Single-source **Redpanda (`v24.2.11`)** definition capped at `350 MB` RAM, exposing both the Kafka wire protocol (`:9092` external / `:19092` internal) and Confluent-compatible Schema Registry (`:8081`) without ZooKeeper or JVM heap bloat. It can be started standalone or automatically via Compose `include:` in `projects/ecommerce/orchestration/docker-compose.yml`.
 - **Producer Side (`create_avro_producer`)**: Pairs `SchemaRegistryClient` with `AvroSerializer` and `confluent_kafka.Producer` so events are validated against `ecommerce_event.avsc` prior to ingestion.
 - **Consumer Side (`get_abris_from_avro_column`)**: Bridges PySpark to Scala ABRiS (`za.co.absa.abris`) via `spark._jvm`, downloading the latest reader schema by `TopicNameStrategy` from Schema Registry (`:8081`) and deserializing binary `value` bytes into structured Spark SQL columns.
 
@@ -126,4 +126,4 @@ flowchart LR
 All Dockerfiles (`batch_layer/Dockerfile`, `orchestration/Dockerfile`, `orchestration/superset/Dockerfile`) are registered as Pants `docker_image` targets pinned to `3rdparty/user_reqs.lock` via `3rdparty/extract_lock_constraints.py`:
 - `batch_layer/Dockerfile` pre-installs DuckDB CLI + `delta` extension.
 - `orchestration/Dockerfile` bundles JRE 17 + Spark/Delta/PyDeequ inside `/opt/pipeline-venv` alongside `astronomer-cosmos` in Airflow `2.9.3`.
-- `orchestration/docker-compose.prod.yml` merges Redpanda (`350 MB`), tuned Postgres (`128 MB`), Redis (`64 MB`), Airflow (`SPARK_IN_AIRFLOW=true`), Superset (`SUPERSET_PUBLIC_READONLY=true`), and optional `cloudflared` tunnel under ~2.6 GB RAM.
+- `orchestration/docker-compose.yml` uses Compose `include:` to bring up `projects/common/docker/docker-compose.yml` (Redpanda `350 MB`) on the same shared network as Postgres, Redis, Airflow, and Superset. Layering the lean `orchestration/docker-compose.prod.yml` override (`-f docker-compose.yml -f docker-compose.prod.yml`) tunes Postgres (`128 MB`) and Redis (`64 MB`), sets `SPARK_IN_AIRFLOW=true`, restricts host port exposure, enables `SUPERSET_PUBLIC_READONLY=true`, and adds an optional `cloudflared` tunnel under ~2.6 GB RAM.
